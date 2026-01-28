@@ -3,50 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Battle Manager v5.7 Live</title>
+    <title>Ultimate Battle Manager v5.9 Live</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
-            --bg-color: #f0f2f5;
-            --side-bg: #ffffff;
-            --player-accent: #4361ee;
-            --enemy-accent: #e63946;
-            --heal-accent: #2a9d8f;
-            --dice-accent: #8e44ad;
-            --turn-active: #00d2ff;
-            --text-main: #2d3436;
-            --border: #dfe6e9;
+            --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946;
+            --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9;
         }
-
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Pretendard', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-
         .side-panel { width: 350px; display: flex; flex-direction: column; background: var(--side-bg); border: 1px solid var(--border); }
         .char-scroll-area { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; }
         .center-panel { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow: hidden; }
-
         .char-card { background: #fff; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; transition: all 0.3s ease; }
         .char-card.active-turn { border: 3px solid var(--turn-active); box-shadow: 0 0 15px rgba(0, 210, 255, 0.5); transform: scale(1.02); z-index: 5; }
         .char-card.turn-ended { opacity: 0.5; background: #f8f9fa; }
         .char-card.is-ko { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
-        
         .ko-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background: rgba(0,0,0,0.8); color: white; padding: 5px 15px; border: 2px solid red; font-weight: 900; z-index: 100; display: none; }
         .char-card.is-ko .ko-badge { display: block; }
-
         .card-header { padding: 12px; cursor: pointer; background: #fff; display: flex; flex-direction: column; border-radius: 12px; }
         .card-body { overflow: hidden; max-height: 0; transition: max-height 0.4s ease; padding: 0 12px; background: #fff; opacity: 0; visibility: hidden; }
         .card-body.expanded { max-height: 2000px; padding: 12px; border-top: 1px solid #f1f1f1; opacity: 1; visibility: visible; }
-
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
         .stat-item { display: flex; align-items: center; justify-content: space-between; font-size: 11px; }
         .stat-item input { width: 42px; border: none; border-bottom: 1px solid #ddd; text-align: right; font-weight: 600; background: transparent; }
         .init-input { width: 60px !important; color: var(--turn-active); border-bottom: 2px solid var(--turn-active) !important; font-weight: 900 !important; text-align: center; font-size: 12px; }
-        
         .hp-bar-outer { width: 100%; height: 4px; background: #eee; border-radius: 8px; margin-top: 5px; }
         .hp-bar-inner { height: 100%; width: 100%; transition: 0.3s; }
         .arrow-icon { font-size: 10px; transition: transform 0.3s; color: #b2bec3; }
-
         .turn-display { background: #2d3436; color: white; padding: 8px 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .log-area { flex: 1; background: #fff; border-radius: 10px; padding: 10px; overflow-y: auto; border: 2px solid var(--border); font-size: 13px; line-height: 1.6; }
         .log-line { margin-bottom: 4px; padding: 2px 5px; border-radius: 4px; border-left: 3px solid transparent; }
@@ -54,7 +39,6 @@
         .log-atk { border-left-color: var(--enemy-accent); }
         .log-heal { border-left-color: var(--heal-accent); }
         .log-dice { border-left-color: var(--dice-accent); background: #fbf9ff; }
-
         .control-row { display: flex; gap: 8px; flex-shrink: 0; height: 180px; }
         .control-box { flex: 1; background: #fff; padding: 10px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; position: relative; }
         .custom-select { width: 100%; padding: 6px; border: 1px solid #eee; border-radius: 5px; margin-bottom: 4px; font-size: 11px; cursor: pointer; background: #f9f9f9; overflow: hidden; white-space: nowrap; }
@@ -62,17 +46,15 @@
         .dropdown-menu div { padding: 6px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #eee; }
         .target-tag { display: inline-flex; align-items: center; background: #edf2f7; padding: 2px 6px; margin: 1px; border-radius: 4px; font-size: 10px; }
         .target-tag b { margin-left: 4px; color: #e63946; cursor: pointer; }
-
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px; background: white; z-index: 1000; border-radius: 12px; padding: 18px; display: none; box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 999; display: none; }
-        
         button { cursor: pointer; border: none; font-weight: 700; border-radius: 5px; transition: 0.15s; }
         .btn-action { width: 100%; padding: 8px; color: white; margin-top: auto; font-size: 11px; }
-
         .status-badge { display: flex; justify-content: space-between; align-items: center; background: #f1f2f6; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; font-size: 10px; }
         .status-badge input { width: 28px; text-align: center; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
-
-        .is-viewer button, .is-viewer .custom-select, .is-viewer input { pointer-events: none; opacity: 0.7; }
+        
+        /* 뷰어 모드 스타일: 마스터가 아닐 때만 적용 */
+        .is-viewer .admin-control { pointer-events: none; opacity: 0.7; }
         #masterBadge { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2000; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .admin-only { background: var(--turn-active); color: #000; }
         .viewer-only { background: #636e72; color: #fff; }
@@ -127,7 +109,7 @@
 <div class="side-panel">
     <div class="panel-header" style="padding:10px; display:flex; justify-content:space-between; align-items:center;">
         <h5 style="margin:0; color:var(--player-accent);">PLAYERS</h5>
-        <button onclick="createUnit('player'); broadcastData();" style="background:var(--player-accent); color:white; padding:2px 8px;">+</button>
+        <button class="admin-control" onclick="createUnit('player'); broadcastData();" style="background:var(--player-accent); color:white; padding:2px 8px;">+</button>
     </div>
     <div id="playerList" class="char-scroll-area"></div>
 </div>
@@ -136,12 +118,12 @@
     <div class="turn-display">
         <div style="display:flex; align-items:center; gap:10px;">
             <b>ROUND <span id="roundNum">1</span></b>
-            <button onclick="startFirstTurn()" style="background:var(--turn-active); color:#2d3436; padding:4px 10px; font-size:11px;">전투 시작</button>
+            <button class="admin-control" onclick="startFirstTurn()" style="background:var(--turn-active); color:#2d3436; padding:4px 10px; font-size:11px;">전투 시작</button>
         </div>
-        <button onclick="processEndPhase()" style="background:var(--enemy-accent); color:white; padding:4px 12px; font-size:11px;">라운드 결산 & 종료</button>
+        <button class="admin-control" onclick="processEndPhase()" style="background:var(--enemy-accent); color:white; padding:4px 12px; font-size:11px;">라운드 결산 & 종료</button>
     </div>
 
-    <div class="control-row">
+    <div class="control-row admin-control">
         <div class="control-box">
             <h6 style="margin:0 0 6px 0; color:var(--enemy-accent);">⚔️ ATTACK</h6>
             <div class="custom-select" onclick="openSelect(event, 'atkSrcList')" id="atkSrcBtn">공격자</div>
@@ -168,13 +150,13 @@
         </div>
     </div>
 
-    <div style="display:flex; gap:5px; background:white; padding:8px; border-radius:10px; border:1px solid var(--border);">
+    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:8px; border-radius:10px; border:1px solid var(--border);">
         <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:8px; font-size:11px;">⚙️ 상태이상 설정</button>
         <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:8px; font-size:11px;">💊 아이템 설정</button>
         <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:8px; font-size:11px;">👜 아이템 사용</button>
     </div>
 
-    <div style="display:flex; gap:5px;">
+    <div class="admin-control" style="display:flex; gap:5px;">
         <button onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
         <button onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
         <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
@@ -186,7 +168,7 @@
 <div class="side-panel">
     <div class="panel-header" style="padding:10px; display:flex; justify-content:space-between; align-items:center;">
         <h5 style="margin:0; color:var(--enemy-accent);">ENEMIES</h5>
-        <button onclick="createUnit('enemy'); broadcastData();" style="background:var(--enemy-accent); color:white; padding:2px 8px;">+</button>
+        <button class="admin-control" onclick="createUnit('enemy'); broadcastData();" style="background:var(--enemy-accent); color:white; padding:2px 8px;">+</button>
     </div>
     <div id="enemyList" class="char-scroll-area"></div>
 </div>
@@ -205,7 +187,9 @@
             isMaster = true; document.body.classList.remove('is-viewer');
             const b = document.getElementById('masterBadge');
             b.textContent = "👑 마스터 권한 활성화"; b.className = "admin-only";
-            alert("인증 성공!");
+            // 인증 후 현재 모든 입력창의 readonly 속성 제거
+            document.querySelectorAll('input, select').forEach(i => i.removeAttribute('readonly'));
+            alert("인증 성공! 이제 모든 항목을 수정할 수 있습니다.");
         } else { alert("비밀번호 불일치"); }
     }
 
@@ -277,12 +261,12 @@
                     `).join('')}
                 </div>
                 <div style="margin-top:10px; display:flex; gap:5px;">
-                    <button onclick="finishCurrentTurn(${currentId})" style="flex:1.2; background:var(--turn-active); color:#2d3436; padding:8px; font-size:11px;">행동 완료</button>
-                    <button onclick="executeBonusAtk(${currentId})" style="flex:1; background:#ff7675; color:white; padding:8px; font-size:11px;">추가피해(%)</button>
+                    <button class="admin-control" onclick="finishCurrentTurn(${currentId})" style="flex:1.2; background:var(--turn-active); color:#2d3436; padding:8px; font-size:11px;">행동 완료</button>
+                    <button class="admin-control" onclick="executeBonusAtk(${currentId})" style="flex:1; background:#ff7675; color:white; padding:8px; font-size:11px;">추가피해(%)</button>
                     <input type="number" class="bonus-dmg-input" value="0" style="width:35px; border:1px solid #ddd; text-align:center; border-radius:4px;" ${ro}>
                 </div>
                 <div style="margin-top:8px; border-top:1px dashed #eee; padding-top:6px;">
-                    <button onclick="openUnitStatusSelect(event, ${currentId})" style="width:100%; font-size:10px; padding:3px; background:#f8f9fa; border:1px solid #ddd;">+ 상태이상 부여</button>
+                    <button class="admin-control" onclick="openUnitStatusSelect(event, ${currentId})" style="width:100%; font-size:10px; padding:3px; background:#f8f9fa; border:1px solid #ddd;">+ 상태이상 부여</button>
                     <div id="unitActiveStatus_${currentId}" style="margin-top:4px;"></div>
                     <div id="unitStatusMenu_${currentId}" class="dropdown-menu"></div>
                 </div>
@@ -330,7 +314,6 @@
         log(`▶ [순서 ${cur.order}] **${card.querySelector('.name-input').value}** 캐릭터의 차례`, 'log-dice'); broadcastData();
     }
 
-    // [중요 수정] 행동 완료 시 해당 캐릭터의 상태이상 턴 감소
     function finishCurrentTurn(id) {
         const card = document.getElementById(`unitCard_${id}`);
         if(card) {
@@ -341,8 +324,7 @@
                     const badge = st.closest('.status-badge');
                     const nameSpan = badge.querySelector('span');
                     const effectName = nameSpan.textContent.split('(')[0];
-                    if(rem === 0) badge.remove(); 
-                    else nameSpan.textContent = `${effectName}(${rem}T)`;
+                    if(rem === 0) badge.remove(); else nameSpan.textContent = `${effectName}(${rem}T)`;
                 }
             });
             card.classList.remove('active-turn');
@@ -382,15 +364,12 @@
         });
     }
 
-    // [중요 수정] 결산 시 턴 감소 로직 제거 (DOT만 처리)
     function processEndPhase() {
         log(`━━━━ ROUND ${round} 결산 (DOT 적용) ━━━━`, 'log-round-box');
         document.querySelectorAll('.char-card').forEach(card => {
             if(card.classList.contains('is-ko')) return;
             const max = parseFloat(card.querySelector('.max').value); let dot = 0;
-            card.querySelectorAll('.st-stack').forEach(st => {
-                if(st.dataset.stat === 'dot') dot += (max * (parseFloat(st.dataset.power)/100)) * parseInt(st.value);
-            });
+            card.querySelectorAll('.st-stack').forEach(st => { if(st.dataset.stat === 'dot') dot += (max * (parseFloat(st.dataset.power)/100)) * parseInt(st.value); });
             if(dot > 0) { card.querySelector('.hp').value = Math.max(0, parseFloat(card.querySelector('.hp').value) - dot).toFixed(1); updateHP(card.id.split('_')[1]); log(`🔥 ${card.querySelector('.name-input').value} DOT 피해 **${dot.toFixed(1)}**`, 'log-atk'); }
             card.classList.remove('turn-ended', 'active-turn');
         });
@@ -447,7 +426,7 @@
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map((s, idx) => `<div onclick="applyStatus(${id}, ${idx})">${s.name}</div>`).join(""); m.style.display='block'; }
     function applyStatus(uId, sIdx) {
         const s = statusTypes[sIdx]; const b = document.createElement('div'); b.className = 'status-badge';
-        b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
+        b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()" ${isMaster ? "" : "readonly"}> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
         document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); broadcastData();
     }
     function addNewItemType() { itemTypes.push({ name: document.getElementById('itemName').value, power: parseFloat(document.getElementById('itemPower').value) }); renderItemTypeList(); }
