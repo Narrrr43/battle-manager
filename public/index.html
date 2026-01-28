@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Battle Manager v5.9 Live</title>
+    <title>Ultimate Battle Manager v6.0 Live</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -53,7 +53,6 @@
         .status-badge { display: flex; justify-content: space-between; align-items: center; background: #f1f2f6; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; font-size: 10px; }
         .status-badge input { width: 28px; text-align: center; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         
-        /* 뷰어 모드 스타일: 마스터가 아닐 때만 적용 */
         .is-viewer .admin-control { pointer-events: none; opacity: 0.7; }
         #masterBadge { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2000; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .admin-only { background: var(--turn-active); color: #000; }
@@ -66,12 +65,19 @@
 <div class="overlay" id="overlay"></div>
 
 <div id="statusManagerMenu" class="modal">
-    <h4 style="margin:0 0 10px 0;">✨ 상태이상 & DOT 등록</h4>
+    <h4 style="margin:0 0 10px 0;">✨ 상태이상 & DOT/HOT 등록</h4>
     <div style="display:flex; flex-direction:column; gap:6px;">
         <input type="text" id="msName" placeholder="효과 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
         <div style="display:flex; gap:4px;">
             <select id="msStat" style="flex:1.2; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-                <option value="atk">공격력 %</option><option value="hit">명중률 %</option><option value="eva">회피율 %</option><option value="critR">치명타 확률 %</option><option value="dot">지속피해(MAX HP %)</option>
+                <option value="atk">공격력 %</option>
+                <option value="int">지능 %</option>
+                <option value="hit">명중률 %</option>
+                <option value="eva">회피율 %</option>
+                <option value="critR">치명타 확률 %</option>
+                <option value="critD">치명타 데미지 %</option>
+                <option value="dot">지속피해(MAX HP %)</option>
+                <option value="hot">지속회복(MAX HP %)</option>
                 <option value="skip">⛔ 행동 불가 (턴 건너뛰기)</option>
             </select>
             <input type="number" id="msPower" placeholder="수치" style="flex:0.8; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
@@ -187,9 +193,9 @@
             isMaster = true; document.body.classList.remove('is-viewer');
             const b = document.getElementById('masterBadge');
             b.textContent = "👑 마스터 권한 활성화"; b.className = "admin-only";
-            // 인증 후 현재 모든 입력창의 readonly 속성 제거
+            // 모든 입력창의 readonly 속성 즉시 제거
             document.querySelectorAll('input, select').forEach(i => i.removeAttribute('readonly'));
-            alert("인증 성공! 이제 모든 항목을 수정할 수 있습니다.");
+            alert("인증 성공! 모든 항목 수정 가능.");
         } else { alert("비밀번호 불일치"); }
     }
 
@@ -284,114 +290,28 @@
         updateHP(currentId, false); refreshDropdowns();
     }
 
-    function startFirstTurn() {
-        turnList = []; document.querySelectorAll('.char-card').forEach(card => {
-            const id = card.id.split('_')[1]; const initVal = card.querySelector('.init-input').value;
-            initVal.split(',').forEach(v => { const o = parseInt(v.trim()); if(!isNaN(o)) turnList.push({ id, order: o }); });
-            card.classList.remove('turn-ended', 'active-turn');
-        });
-        turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn();
-    }
-
-    function processNextTurn() {
-        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn'));
-        if(currentTurnPointer >= turnList.length) return log("🏁 라운드 종료.");
-        const cur = turnList[currentTurnPointer]; const card = document.getElementById(`unitCard_${cur.id}`);
-        if(card.classList.contains('is-ko')) { currentTurnPointer++; return processNextTurn(); }
-
-        let isSkipped = false; let skipName = "";
-        card.querySelectorAll('.st-stack').forEach(st => {
-            if(st.dataset.stat === 'skip') { isSkipped = true; skipName = st.closest('.status-badge').querySelector('span').textContent.split('(')[0]; }
-        });
-
-        if(isSkipped) {
-            card.classList.add('active-turn');
-            log(`🚫 **${card.querySelector('.name-input').value}** 캐릭터는 **[${skipName}]** 상태로 행동이 불가합니다.`, 'log-dice');
-            setTimeout(() => finishCurrentTurn(cur.id), 800); return;
-        }
-
-        card.classList.add('active-turn'); card.classList.remove('turn-ended'); toggleCard(cur.id, true);
-        log(`▶ [순서 ${cur.order}] **${card.querySelector('.name-input').value}** 캐릭터의 차례`, 'log-dice'); broadcastData();
-    }
-
-    function finishCurrentTurn(id) {
-        const card = document.getElementById(`unitCard_${id}`);
-        if(card) {
-            card.querySelectorAll('.st-stack').forEach(st => {
-                let rem = parseInt(st.dataset.remain);
-                if(rem > 0) {
-                    rem--; st.dataset.remain = rem;
-                    const badge = st.closest('.status-badge');
-                    const nameSpan = badge.querySelector('span');
-                    const effectName = nameSpan.textContent.split('(')[0];
-                    if(rem === 0) badge.remove(); else nameSpan.textContent = `${effectName}(${rem}T)`;
-                }
-            });
-            card.classList.remove('active-turn');
-            if(!turnList.slice(currentTurnPointer+1).some(t => t.id == id)) card.classList.add('turn-ended');
-        }
-        currentTurnPointer++; processNextTurn(); broadcastData();
-    }
-
-    function executeAction(mode) {
-        const src = mode === 'attack' ? selections.atkSrc : selections.healSrc;
-        const tars = mode === 'attack' ? selections.atkTar : selections.healTar;
-        const sCard = findCardByName(src); if(!sCard || tars.length === 0) return alert("선택 확인!");
-        tars.forEach(tName => {
-            const tCard = findCardByName(tName); if(!tCard) return;
-            if(mode === 'attack') {
-                const atk = getModifiedStat(sCard, 'atk'), sp = parseFloat(sCard.querySelector('.sp').value);
-                let dmg = (atk * (sp/3)) * (sp*0.2) * (0.9 + Math.random()*0.2);
-                tCard.querySelector('.hp').value = Math.max(0, parseFloat(tCard.querySelector('.hp').value) - dmg).toFixed(1);
-                updateHP(tCard.id.split('_')[1]); log(`${src} → ${tName} : <b>${dmg.toFixed(1)}</b> 피해`, 'log-atk');
-            } else {
-                const intel = getModifiedStat(sCard, 'int'), eff = parseFloat(sCard.querySelector('.healEff').value);
-                let h = ((intel * eff) / 5) * (0.9 + Math.random()*0.2);
-                tCard.querySelector('.hp').value = Math.min(parseFloat(tCard.querySelector('.max').value), parseFloat(tCard.querySelector('.hp').value) + h).toFixed(1);
-                updateHP(tCard.id.split('_')[1]); log(`${src} → ${tName} : <b>${h.toFixed(1)}</b> 회복`, 'log-heal');
-            }
-        });
-    }
-
-    function executeBonusAtk(uId) {
-        const card = document.getElementById(`unitCard_${uId}`);
-        const r = parseFloat(card.querySelector('.bonus-dmg-input').value) || 0;
-        selections.atkTar.forEach(tName => {
-            const tCard = findCardByName(tName); if(!tCard) return;
-            let d = (getModifiedStat(card, 'atk') * (r/100)) * (parseFloat(card.querySelector('.sp').value)*0.2);
-            tCard.querySelector('.hp').value = Math.max(0, parseFloat(tCard.querySelector('.hp').value) - d).toFixed(1);
-            updateHP(tCard.id.split('_')[1]); log(`[추가] ${tName} <b>${d.toFixed(1)}</b> 피해(${r}%)`, 'log-atk');
-        });
-    }
-
     function processEndPhase() {
-        log(`━━━━ ROUND ${round} 결산 (DOT 적용) ━━━━`, 'log-round-box');
+        log(`━━━━ ROUND ${round} 결산 (DOT/HOT 적용) ━━━━`, 'log-round-box');
         document.querySelectorAll('.char-card').forEach(card => {
             if(card.classList.contains('is-ko')) return;
-            const max = parseFloat(card.querySelector('.max').value); let dot = 0;
-            card.querySelectorAll('.st-stack').forEach(st => { if(st.dataset.stat === 'dot') dot += (max * (parseFloat(st.dataset.power)/100)) * parseInt(st.value); });
-            if(dot > 0) { card.querySelector('.hp').value = Math.max(0, parseFloat(card.querySelector('.hp').value) - dot).toFixed(1); updateHP(card.id.split('_')[1]); log(`🔥 ${card.querySelector('.name-input').value} DOT 피해 **${dot.toFixed(1)}**`, 'log-atk'); }
+            const max = parseFloat(card.querySelector('.max').value);
+            let dot = 0; let hot = 0;
+            card.querySelectorAll('.st-stack').forEach(st => { 
+                if(st.dataset.stat === 'dot') dot += (max * (parseFloat(st.dataset.power)/100)) * parseInt(st.value);
+                if(st.dataset.stat === 'hot') hot += (max * (parseFloat(st.dataset.power)/100)) * parseInt(st.value);
+            });
+            if(dot > 0) { 
+                card.querySelector('.hp').value = Math.max(0, parseFloat(card.querySelector('.hp').value) - dot).toFixed(1); 
+                log(`🔥 ${card.querySelector('.name-input').value} DOT 피해 **${dot.toFixed(1)}**`, 'log-atk'); 
+            }
+            if(hot > 0) {
+                card.querySelector('.hp').value = Math.min(max, parseFloat(card.querySelector('.hp').value) + hot).toFixed(1);
+                log(`✨ ${card.querySelector('.name-input').value} HOT 회복 **${hot.toFixed(1)}**`, 'log-heal');
+            }
+            updateHP(card.id.split('_')[1]);
             card.classList.remove('turn-ended', 'active-turn');
         });
         round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData();
-    }
-
-    function updateHP(id, b = true) {
-        const card = document.getElementById(`unitCard_${id}`); const hp = parseFloat(card.querySelector('.hp').value), max = parseFloat(card.querySelector('.max').value);
-        const p = Math.max(0, Math.min(100, (hp/max)*100));
-        document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`;
-        document.getElementById(`hpBar_${id}`).style.width = p+"%";
-        if(hp <= 0) card.classList.add('is-ko'); else card.classList.remove('is-ko');
-        if(b) broadcastData();
-    }
-
-    function toggleCard(id, force) {
-        const body = document.getElementById(`cardBody_${id}`);
-        const arrow = document.getElementById(`arrow_${id}`);
-        if(!body) return;
-        const ex = force !== undefined ? force : !body.classList.contains('expanded');
-        if(ex) { body.classList.add('expanded'); arrow.style.transform="rotate(180deg)"; }
-        else { body.classList.remove('expanded'); arrow.style.transform="rotate(0deg)"; }
     }
 
     function getModifiedStat(c, s) {
@@ -400,23 +320,17 @@
         return val * (1 + (m/100));
     }
 
+    /* 유틸리티 및 기본 함수들 */
+    function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(card => { const id = card.id.split('_')[1]; const initVal = card.querySelector('.init-input').value; initVal.split(',').forEach(v => { const o = parseInt(v.trim()); if(!isNaN(o)) turnList.push({ id, order: o }); }); card.classList.remove('turn-ended', 'active-turn'); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
+    function processNextTurn() { document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn')); if(currentTurnPointer >= turnList.length) return log("🏁 라운드 종료."); const cur = turnList[currentTurnPointer]; const card = document.getElementById(`unitCard_${cur.id}`); if(card.classList.contains('is-ko')) { currentTurnPointer++; return processNextTurn(); } let isSkipped = false; let skipName = ""; card.querySelectorAll('.st-stack').forEach(st => { if(st.dataset.stat === 'skip') { isSkipped = true; skipName = st.closest('.status-badge').querySelector('span').textContent.split('(')[0]; } }); if(isSkipped) { card.classList.add('active-turn'); log(`🚫 **${card.querySelector('.name-input').value}** [${skipName}] 행동불가.`, 'log-dice'); setTimeout(() => finishCurrentTurn(cur.id), 800); return; } card.classList.add('active-turn'); card.classList.remove('turn-ended'); toggleCard(cur.id, true); log(`▶ [${cur.order}] **${card.querySelector('.name-input').value}** 턴`, 'log-dice'); broadcastData(); }
+    function finishCurrentTurn(id) { const card = document.getElementById(`unitCard_${id}`); if(card) { card.querySelectorAll('.st-stack').forEach(st => { let rem = parseInt(st.dataset.remain); if(rem > 0) { rem--; st.dataset.remain = rem; const badge = st.closest('.status-badge'); const nameSpan = badge.querySelector('span'); const effectName = nameSpan.textContent.split('(')[0]; if(rem === 0) badge.remove(); else nameSpan.textContent = `${effectName}(${rem}T)`; } }); card.classList.remove('active-turn'); if(!turnList.slice(currentTurnPointer+1).some(t => t.id == id)) card.classList.add('turn-ended'); } currentTurnPointer++; processNextTurn(); broadcastData(); }
+    function executeAction(mode) { const src = mode === 'attack' ? selections.atkSrc : selections.healSrc; const tars = mode === 'attack' ? selections.atkTar : selections.healTar; const sCard = findCardByName(src); if(!sCard || tars.length === 0) return alert("선택 확인!"); tars.forEach(tName => { const tCard = findCardByName(tName); if(!tCard) return; if(mode === 'attack') { const atk = getModifiedStat(sCard, 'atk'), sp = parseFloat(sCard.querySelector('.sp').value); let dmg = (atk * (sp/3)) * (sp*0.2) * (0.9 + Math.random()*0.2); tCard.querySelector('.hp').value = Math.max(0, parseFloat(tCard.querySelector('.hp').value) - dmg).toFixed(1); updateHP(tCard.id.split('_')[1]); log(`${src} → ${tName} : <b>${dmg.toFixed(1)}</b> 피해`, 'log-atk'); } else { const intel = getModifiedStat(sCard, 'int'), eff = parseFloat(sCard.querySelector('.healEff').value); let h = ((intel * eff) / 5) * (0.9 + Math.random()*0.2); tCard.querySelector('.hp').value = Math.min(parseFloat(tCard.querySelector('.max').value), parseFloat(tCard.querySelector('.hp').value) + h).toFixed(1); updateHP(tCard.id.split('_')[1]); log(`${src} → ${tName} : <b>${h.toFixed(1)}</b> 회복`, 'log-heal'); } }); }
+    function executeBonusAtk(uId) { const card = document.getElementById(`unitCard_${uId}`); const r = parseFloat(card.querySelector('.bonus-dmg-input').value) || 0; selections.atkTar.forEach(tName => { const tCard = findCardByName(tName); if(!tCard) return; let d = (getModifiedStat(card, 'atk') * (r/100)) * (parseFloat(card.querySelector('.sp').value)*0.2); tCard.querySelector('.hp').value = Math.max(0, parseFloat(tCard.querySelector('.hp').value) - d).toFixed(1); updateHP(tCard.id.split('_')[1]); log(`[추가] ${tName} <b>${d.toFixed(1)}</b> 피해(${r}%)`, 'log-atk'); }); }
+    function updateHP(id, b = true) { const card = document.getElementById(`unitCard_${id}`); const hp = parseFloat(card.querySelector('.hp').value), max = parseFloat(card.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) card.classList.add('is-ko'); else card.classList.remove('is-ko'); if(b) broadcastData(); }
+    function toggleCard(id, force) { const body = document.getElementById(`cardBody_${id}`); const arrow = document.getElementById(`arrow_${id}`); if(!body) return; const ex = force !== undefined ? force : !body.classList.contains('expanded'); if(ex) { body.classList.add('expanded'); arrow.style.transform="rotate(180deg)"; } else { body.classList.remove('expanded'); arrow.style.transform="rotate(0deg)"; } }
     function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
     function closeMenus() { document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display='none'); }
-    function refreshDropdowns() {
-        const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim());
-        ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList', 'itemSelList'].forEach(id => {
-            const list = document.getElementById(id); list.innerHTML = "";
-            (id === 'itemSelList' ? itemTypes.map(i=>i.name) : names).forEach(n => {
-                const d = document.createElement('div'); d.textContent = n;
-                d.onclick = () => {
-                    const key = id.replace('List', '');
-                    if(id.includes('Src') || id.includes('User') || id.includes('Sel')) { selections[key] = n; document.getElementById(key+'Btn').textContent = n; }
-                    else { if(!selections[key].includes(n)) selections[key].push(n); renderTags(key); }
-                }; list.appendChild(d);
-            });
-        });
-    }
-
+    function refreshDropdowns() { const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim()); ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList', 'itemSelList'].forEach(id => { const list = document.getElementById(id); list.innerHTML = ""; (id === 'itemSelList' ? itemTypes.map(i=>i.name) : names).forEach(n => { const d = document.createElement('div'); d.textContent = n; d.onclick = () => { const key = id.replace('List', ''); if(id.includes('Src') || id.includes('User') || id.includes('Sel')) { selections[key] = n; document.getElementById(key+'Btn').textContent = n; } else { if(!selections[key].includes(n)) selections[key].push(n); renderTags(key); } }; list.appendChild(d); }); }); }
     function renderTags(k) { document.getElementById(k+'Tags').innerHTML = selections[k].map(n => `<span class="target-tag">${n}<b onclick="selections['${k}']=selections['${k}'].filter(t=>t!=='${n}'); renderTags('${k}')">×</b></span>`).join(""); }
     function findCardByName(n) { return [...document.querySelectorAll('.char-card')].find(c => c.querySelector('.name-input').value === n); }
     function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
@@ -424,40 +338,13 @@
     function addNewStatusType() { statusTypes.push({ name: document.getElementById('msName').value, stat: document.getElementById('msStat').value, power: parseFloat(document.getElementById('msPower').value), turn: parseInt(document.getElementById('msTurn').value) }); renderStatusTypeList(); }
     function renderStatusTypeList() { document.getElementById('statusTypeList').innerHTML = statusTypes.map((s, idx) => `<div style="padding:4px; font-size:11px;">${s.name} <button onclick="statusTypes.splice(${idx},1); renderStatusTypeList();">×</button></div>`).join(""); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map((s, idx) => `<div onclick="applyStatus(${id}, ${idx})">${s.name}</div>`).join(""); m.style.display='block'; }
-    function applyStatus(uId, sIdx) {
-        const s = statusTypes[sIdx]; const b = document.createElement('div'); b.className = 'status-badge';
-        b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()" ${isMaster ? "" : "readonly"}> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
-        document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); broadcastData();
-    }
+    function applyStatus(uId, sIdx) { const s = statusTypes[sIdx]; const b = document.createElement('div'); b.className = 'status-badge'; b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()" ${isMaster ? "" : "readonly"}> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); broadcastData(); }
     function addNewItemType() { itemTypes.push({ name: document.getElementById('itemName').value, power: parseFloat(document.getElementById('itemPower').value) }); renderItemTypeList(); }
     function renderItemTypeList() { document.getElementById('itemTypeList').innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px;">${it.name} <button onclick="itemTypes.splice(${idx},1); renderItemTypeList();">×</button></div>`).join(""); }
-    function useItemNow() {
-        const it = itemTypes.find(i=>i.name===selections.itemSel); const c = findCardByName(selections.itemUser); if(!it || !c) return;
-        c.querySelector('.hp').value = Math.min(parseFloat(c.querySelector('.max').value), parseFloat(c.querySelector('.hp').value) + it.power).toFixed(1);
-        updateHP(c.id.split('_')[1]); log(`💊 ${selections.itemUser} ${it.name} 사용`, 'log-heal'); toggleModal('useItemPopup', false);
-    }
-    function exportData() {
-        const data = { round, statusTypes, itemTypes, units: [] };
-        document.querySelectorAll('.char-card').forEach(card => {
-            const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
-            const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => { const st = b.querySelector('.st-stack'); activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain }); });
-            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus });
-        });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_manager_save.json`; a.click();
-    }
-    function importData(e) {
-        const f = e.target.files[0]; if(!f) return;
-        const reader = new FileReader(); reader.onload = (re) => {
-            const d = JSON.parse(re.target.result);
-            document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = '';
-            unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round;
-            statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || [];
-            renderStatusTypeList(); renderItemTypeList();
-            if(d.units) d.units.forEach(u => createUnit(u.type, u));
-            log("📁 데이터 로드 완료"); broadcastData();
-        }; reader.readAsText(f);
-    }
-    function getStatLabel(s) { const l = {atk:'공격력', int:'지능', hit:'명중%', eva:'회피%', critR:'치명%', critD:'크뎀%', sp:'영력', healEff:'치료효율', hp:'현재HP', max:'최대HP', skip:'행동불가'}; return l[s]; }
+    function useItemNow() { const it = itemTypes.find(i=>i.name===selections.itemSel); const c = findCardByName(selections.itemUser); if(!it || !c) return; c.querySelector('.hp').value = Math.min(parseFloat(c.querySelector('.max').value), parseFloat(c.querySelector('.hp').value) + it.power).toFixed(1); updateHP(c.id.split('_')[1]); log(`💊 ${selections.itemUser} ${it.name} 사용`, 'log-heal'); toggleModal('useItemPopup', false); }
+    function exportData() { const data = { round, statusTypes, itemTypes, units: [] }; document.querySelectorAll('.char-card').forEach(card => { const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; }); const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => { const st = b.querySelector('.st-stack'); activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain }); }); data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus }); }); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_manager_save.json`; a.click(); }
+    function importData(e) { const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = (re) => { const d = JSON.parse(re.target.result); document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round; statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; renderStatusTypeList(); renderItemTypeList(); if(d.units) d.units.forEach(u => createUnit(u.type, u)); log("📁 데이터 로드 완료"); broadcastData(); }; reader.readAsText(f); }
+    function getStatLabel(s) { const l = {atk:'공격력', int:'지능', hit:'명중%', eva:'회피%', critR:'치명%', critD:'크뎀%', sp:'영력', healEff:'치료효율', hp:'현재HP', max:'최대HP'}; return l[s]; }
     function getDefaultValue(s) { const d = {atk:50, int:20, hit:80, eva:15, critR:20, critD:150, sp:5, healEff:10, hp:100, max:100}; return d[s]; }
 
     createUnit('player'); createUnit('enemy');
