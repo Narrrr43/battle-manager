@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Battle Manager v6.9</title>
+    <title>Ultimate Battle Manager v6.91</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; }
@@ -176,9 +176,62 @@
     let turnList = []; let currentTurnPointer = -1;
 
     function askMasterPassword() { const pw = prompt("비밀번호:"); if (pw === MASTER_PW) { isMaster = true; document.body.classList.remove('is-viewer'); document.getElementById('masterBadge').textContent = "👑 마스터 권한 활성화"; document.getElementById('masterBadge').className = "admin-only"; document.querySelectorAll('input, select').forEach(i => i.removeAttribute('readonly')); alert("인증 성공!"); } }
+    
+    function renderStatusTypeList() {
+        const list = document.getElementById('statusTypeList');
+        if(!list) return;
+        list.innerHTML = statusTypes.map((s, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${s.name} (${getStatLabel(s.stat)}) <button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();">×</button></div>`).join("");
+    }
+    
+    function renderItemTypeList() {
+        const list = document.getElementById('itemTypeList');
+        if(!list) return;
+        list.innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${it.name} <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join("");
+    }
+
     function resetAllData() { if(!isMaster) return; if(confirm("초기화?")) { round = 1; statusTypes = []; itemTypes = []; unitIdx = 0; document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; document.getElementById('logArea').innerHTML = ''; document.getElementById('roundNum').textContent = "1"; renderStatusTypeList(); renderItemTypeList(); broadcastData(); } }
-    function importData(e) { const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = (re) => { try { const d = JSON.parse(re.target.result); document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round; statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; renderStatusTypeList(); renderItemTypeList(); if(d.units) d.units.forEach(u => createUnit(u.type, u)); log("📥 로드 완료", "log-dice"); broadcastData(); } catch(err) { alert("실패"); } }; reader.readAsText(f); }
-    function exportData() { const data = { round, statusTypes, itemTypes, units: [] }; document.querySelectorAll('.char-card').forEach(card => { const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; }); const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => { const st = b.querySelector('.st-stack'); activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain }); }); data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus }); }); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click(); }
+    
+    function importData(e) {
+        const f = e.target.files[0];
+        if(!f) return;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            try {
+                const d = JSON.parse(re.target.result);
+                document.getElementById('playerList').innerHTML = '';
+                document.getElementById('enemyList').innerHTML = '';
+                unitIdx = 0;
+                round = d.round || 1;
+                document.getElementById('roundNum').textContent = round;
+                statusTypes = d.statusTypes || [];
+                itemTypes = d.itemTypes || [];
+                renderStatusTypeList();
+                renderItemTypeList();
+                refreshDropdowns();
+                if(d.units) d.units.forEach(u => createUnit(u.type, u));
+                log("📥 데이터 로드 완료", "log-dice");
+                broadcastData();
+            } catch(err) {
+                alert("불러오기 실패");
+            }
+        };
+        reader.readAsText(f);
+    }
+
+    function exportData() {
+        const data = { round, statusTypes, itemTypes, units: [] };
+        document.querySelectorAll('.char-card').forEach(card => {
+            const stats = {};
+            card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
+            const activeStatus = [];
+            card.querySelectorAll('.status-badge').forEach(b => {
+                const st = b.querySelector('.st-stack');
+                activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain });
+            });
+            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') });
+        });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click();
+    }
 
     function createUnit(t, s = null) {
         unitIdx++; const id = unitIdx; const c = document.getElementById(t === 'player' ? 'playerList' : 'enemyList');
@@ -190,35 +243,26 @@
         updateHP(id, false); refreshDropdowns();
     }
 
-    // [전투 실행 로직]
     function executeAction(m) {
         const src = m === 'attack' ? selections.atkSrc : selections.healSrc;
         const tars = m === 'attack' ? selections.atkTar : selections.healTar;
-        const sC = findCardByName(src);
-        if(!sC || tars.length === 0) return alert("대상 확인!");
-
+        const sC = findCardByName(src); if(!sC || tars.length === 0) return alert("대상 확인!");
         tars.forEach(n => {
             const tC = findCardByName(n); if(!tC) return;
             const tId = tC.id.split('_')[1];
-
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
                 const hitRoll = Math.floor(Math.random() * 100) + 1;
-                if(hitRoll > sHit) return log(`💨 ${src} → ${n}: 실패! (Dice: ${hitRoll} > Hit: ${sHit})`, 'log-dice');
+                if(hitRoll > sHit) return log(`💨 ${src} → ${n}: 실패!`, 'log-dice');
                 const evaRoll = Math.floor(Math.random() * 100) + 1;
-                if(evaRoll <= tEva) return log(`🛡️ ${n} 회피! (Dice: ${evaRoll} ≤ Eva: ${tEva})`, 'log-dice');
-
+                if(evaRoll <= tEva) return log(`🛡️ ${n} 회피!`, 'log-dice');
                 const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
-                
-                // [새로운 공격 계산식 적용] (공격력 * (영력+숙련도) * 숙련도) / 80
                 const mastery = sHit / 10;
                 let d = (sAtk * (sSp + mastery) * mastery) / 80;
-                
                 const critRoll = Math.floor(Math.random() * 100) + 1;
                 let isCrit = false; if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
-                d *= (0.9 + Math.random() * 0.2); // 최종 랜덤 변동폭
-
+                d *= (0.9 + Math.random() * 0.2);
                 const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d);
                 tC.querySelector('.hp').value = nextHp.toFixed(1);
                 log(`${isCrit ? '💥 <b>CRITICAL!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해 (숙련:${mastery})`, isCrit ? 'log-atk' : '');
@@ -226,7 +270,6 @@
                 updateHP(tId);
             } else {
                 const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
-                // [치료 로직 - v6.8 유지]
                 let h = ((maxHp * 0.33) / 80 * eff) + (intel * 0.2);
                 h *= (0.95 + Math.random() * 0.1);
                 tC.querySelector('.hp').value = Math.min(maxHp, parseFloat(tC.querySelector('.hp').value) + h).toFixed(1);
@@ -250,8 +293,8 @@
     function rollDice() { const t = document.getElementById('diceType').value || "1d100", s = parseInt(document.getElementById('diceSuccess').value); const m = t.match(/(\d+)d(\d+)/); if(!m) return; let res = 0; for(let i=0; i<m[1]; i++) res += Math.floor(Math.random()*m[2])+1; let msg = `🎲 ${t}: <b>${res}</b>`; if(!isNaN(s)) msg += (res <= s) ? ` [성공]` : ` [실패]`; log(msg, 'log-dice'); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map((s, idx) => `<div onclick="applyStatus(${id}, ${idx})">${s.name}</div>`).join(""); m.style.display='block'; }
     function applyStatus(uId, sIdx) { const s = statusTypes[sIdx], targetName = document.getElementById(`unitCard_${uId}`).querySelector('.name-input').value; const b = document.createElement('div'); b.className = 'status-badge'; b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); log(`🔹 ${targetName}: [${s.name}] 부여`, 'log-dice'); broadcastData(); }
+    function addNewStatusType() { statusTypes.push({ name: document.getElementById('msName').value, stat: document.getElementById('msStat').value, power: parseFloat(document.getElementById('msPower').value), turn: parseInt(document.getElementById('msTurn').value) }); renderStatusTypeList(); broadcastData(); }
     function addNewItemType() { itemTypes.push({ name: document.getElementById('itemName').value, power: parseFloat(document.getElementById('itemPower').value) }); renderItemTypeList(); broadcastData(); }
-    function renderItemTypeList() { document.getElementById('itemTypeList').innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px;">${it.name} <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
     function useItemNow() { const it = itemTypes.find(i=>i.name===selections.itemSel), c = findCardByName(selections.itemUser); if(!it || !c) return; c.querySelector('.hp').value = Math.min(parseFloat(c.querySelector('.max').value), parseFloat(c.querySelector('.hp').value) + it.power).toFixed(1); updateHP(c.id.split('_')[1]); log(`💊 ${selections.itemUser} ${it.name} 사용`, 'log-heal'); toggleModal('useItemPopup', false); broadcastData(); }
     function getStatLabel(s) { const l = {atk:'공격력', int:'지능', hit:'명중%', eva:'회피%', critR:'치명%', critD:'크뎀%', sp:'영력', healEff:'치료효율', hp:'현재HP', max:'최대HP', dot:'지속피해', hot:'지속회복', skip:'행동불가'}; return l[s]; }
     function getDefaultValue(s) { const d = {atk:50, int:20, hit:80, eva:15, critR:20, critD:150, sp:5, healEff:20, hp:100, max:100}; return d[s]; }
