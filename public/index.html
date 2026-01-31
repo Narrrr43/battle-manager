@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Battle Manager v6.4</title>
+    <title>Ultimate Battle Manager v6.6 Full</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* 사용자님의 기존 스타일 100% 유지 */
+        /* CSS는 사용자님의 기존 레이아웃을 100% 유지합니다 */
         :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; }
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Pretendard', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -204,29 +204,17 @@
         reader.onload = (re) => {
             try {
                 const d = JSON.parse(re.target.result);
-                // 기존 데이터 비우기
                 document.getElementById('playerList').innerHTML = '';
                 document.getElementById('enemyList').innerHTML = '';
-                unitIdx = 0; 
-                round = d.round || 1; 
+                unitIdx = 0; round = d.round || 1; 
                 document.getElementById('roundNum').textContent = round;
-                statusTypes = d.statusTypes || []; 
-                itemTypes = d.itemTypes || [];
-                
-                renderStatusTypeList(); 
-                renderItemTypeList();
-                
-                // 유닛 복구
-                if(d.units && d.units.length > 0) {
-                    d.units.forEach(u => createUnit(u.type, u));
-                }
-                
-                log("📥 외부 파일로부터 데이터를 성공적으로 불러왔습니다.", "log-dice");
+                statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || [];
+                renderStatusTypeList(); renderItemTypeList();
+                if(d.units) d.units.forEach(u => createUnit(u.type, u));
+                log("📥 데이터를 성공적으로 불러왔습니다.", "log-dice");
                 broadcastData();
-                e.target.value = ''; // 파일 인풋 초기화
-            } catch(err) {
-                alert("파일 형식이 잘못되었습니다.");
-            }
+                e.target.value = '';
+            } catch(err) { alert("파일 로드 실패"); }
         };
         reader.readAsText(f);
     }
@@ -234,76 +222,15 @@
     function exportData() {
         const data = { round, statusTypes, itemTypes, units: [] };
         document.querySelectorAll('.char-card').forEach(card => {
-            const stats = {}; 
-            card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
-            const activeStatus = []; 
-            card.querySelectorAll('.status-badge').forEach(b => {
-                const st = b.querySelector('.st-stack');
-                activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain });
-            });
-            data.units.push({ 
-                type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', 
-                name: card.querySelector('.name-input').value, 
-                init: card.querySelector('.init-input').value, 
-                stats, activeStatus 
-            });
-        });
-        const a = document.createElement('a'); 
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); 
-        a.download = `battle_save_${new Date().getTime()}.json`; 
-        a.click();
-    }
-
-    function addNewStatusType() {
-        const name = document.getElementById('msName').value;
-        const stat = document.getElementById('msStat').value;
-        const power = parseFloat(document.getElementById('msPower').value) || 0;
-        const turn = parseInt(document.getElementById('msTurn').value) || 0;
-        if(!name) return;
-        statusTypes.push({ name, stat, power, turn });
-        renderStatusTypeList();
-        broadcastData();
-        // 입력창 초기화
-        document.getElementById('msName').value = '';
-        document.getElementById('msPower').value = '';
-        document.getElementById('msTurn').value = '';
-    }
-
-    function renderStatusTypeList() {
-        const list = document.getElementById('statusTypeList');
-        list.innerHTML = statusTypes.map((s, idx) => {
-            const label = getStatLabel(s.stat);
-            const effectStr = s.stat === 'skip' ? '행동불가' : `${label} ${s.power >= 0 ? '+' : ''}${s.power}${s.stat.includes('dot') || s.stat.includes('hot') ? '%' : '%'}`;
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px; font-size:11px; border-bottom:1px solid #f0f0f0;">
-                <div><b>${s.name}</b> <span style="color:#666;">[${effectStr} / ${s.turn}T]</span></div>
-                <button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();" style="background:none; color:red; font-size:14px;">×</button>
-            </div>`;
-        }).join("");
-    }
-
-    /* 나머지 기존 로직 유지 */
-    function broadcastData() {
-        if (!isMaster) return;
-        const data = { round, logHtml: document.getElementById('logArea').innerHTML, statusTypes, itemTypes, units: [] };
-        document.querySelectorAll('.char-card').forEach(card => {
             const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
             const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => {
                 const st = b.querySelector('.st-stack');
                 activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain });
             });
-            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') });
+            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus });
         });
-        socket.emit('sync_to_server', data);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click();
     }
-
-    socket.on('update_from_server', (d) => {
-        round = d.round; document.getElementById('roundNum').textContent = round;
-        document.getElementById('logArea').innerHTML = d.logHtml;
-        statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || [];
-        renderStatusTypeList(); renderItemTypeList();
-        document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = '';
-        d.units.forEach(u => createUnit(u.type, u));
-    });
 
     function createUnit(t, s = null) {
         unitIdx++; const id = unitIdx; const c = document.getElementById(t === 'player' ? 'playerList' : 'enemyList');
@@ -315,64 +242,130 @@
         updateHP(id, false); refreshDropdowns();
     }
 
-    function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
-    function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1]; const v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
-    function processEndPhase() { log(`━━━━ ROUND ${round} 결산 완료 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
-    function updateHP(id, b = true) { const c = document.getElementById(`unitCard_${id}`); if(!c) return; const hp = parseFloat(c.querySelector('.hp').value), max = parseFloat(c.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) c.classList.add('is-ko'); else c.classList.remove('is-ko'); if(b) broadcastData(); }
-    function toggleCard(id, f) { const b = document.getElementById(`cardBody_${id}`); const a = document.getElementById(`arrow_${id}`); if(!b) return; const ex = f !== undefined ? f : !b.classList.contains('expanded'); if(ex) { b.classList.add('expanded'); a.style.transform="rotate(180deg)"; } else { b.classList.remove('expanded'); a.style.transform="rotate(0deg)"; } }
-    function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
-    function closeMenus() { document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display='none'); }
-    function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
-    function refreshDropdowns() { const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim()); ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList', 'itemSelList'].forEach(id => { const list = document.getElementById(id); if(!list) return; list.innerHTML = ""; (id === 'itemSelList' ? itemTypes.map(i=>i.name) : names).forEach(n => { const d = document.createElement('div'); d.textContent = n; d.onclick = () => { const k = id.replace('List', ''); if(id.includes('Src') || id.includes('User') || id.includes('Sel')) { selections[k] = n; document.getElementById(k+'Btn').textContent = n; } else { if(!selections[k].includes(n)) selections[k].push(n); renderTags(k); } }; list.appendChild(d); }); }); }
-    function renderTags(k) { document.getElementById(k+'Tags').innerHTML = selections[k].map(n => `<span class="target-tag">${n}<b onclick="selections['${k}']=selections['${k}'].filter(t=>t!=='${n}'); renderTags('${k}')">×</b></span>`).join(""); }
-    function findCardByName(n) { return [...document.querySelectorAll('.char-card')].find(c => c.querySelector('.name-input').value === n); }
-    function executeAction(m) { const src = m === 'attack' ? selections.atkSrc : selections.healSrc; const tars = m === 'attack' ? selections.atkTar : selections.healTar; const sC = findCardByName(src); if(!sC || tars.length === 0) return alert("선택 확인!"); tars.forEach(n => { const tC = findCardByName(n); if(!tC) return; if(m === 'attack') { const atk = getModifiedStat(sC, 'atk'), sp = parseFloat(sC.querySelector('.sp').value); let d = (atk * (sp/3)) * (sp*0.2) * (0.9 + Math.random()*0.2); tC.querySelector('.hp').value = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d).toFixed(1); updateHP(tC.id.split('_')[1]); log(`${src} → ${n}: ${d.toFixed(1)} 피해`, 'log-atk'); } else { const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value); let h = ((intel * eff) / 5) * (0.9 + Math.random()*0.2); tC.querySelector('.hp').value = Math.min(parseFloat(tC.querySelector('.max').value), parseFloat(tC.querySelector('.hp').value) + h).toFixed(1); updateHP(tC.id.split('_')[1]); log(`${src} → ${n}: ${h.toFixed(1)} 회복`, 'log-heal'); } }); }
-    function executeBonusAtk(id) { const c = document.getElementById(`unitCard_${id}`); const r = parseFloat(c.querySelector('.bonus-dmg-input').value) || 0; selections.atkTar.forEach(n => { const tC = findCardByName(n); if(!tC) return; let d = (getModifiedStat(c, 'atk') * (r/100)) * (parseFloat(c.querySelector('.sp').value)*0.2); tC.querySelector('.hp').value = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d).toFixed(1); updateHP(tC.id.split('_')[1]); log(`[추가] ${n} ${d.toFixed(1)} 피해`, 'log-atk'); }); }
-    function getModifiedStat(c, s) { let v = parseFloat(c.querySelector('.'+s).value), m = 0; c.querySelectorAll('.st-stack').forEach(i => { if(i.dataset.stat === s) m += (parseInt(i.value) * parseFloat(i.dataset.power)); }); return v * (1 + (m/100)); }
-    function rollDice() { const t = document.getElementById('diceType').value || "1d100"; const s = parseInt(document.getElementById('diceSuccess').value); const m = t.match(/(\d+)d(\d+)/); if(!m) return; let res = 0; for(let i=0; i<m[1]; i++) res += Math.floor(Math.random()*m[2])+1; let msg = `🎲 ${t}: <b>${res}</b>`; if(!isNaN(s)) msg += (res <= s) ? ` [성공]` : ` [실패]`; log(msg, 'log-dice'); }
-    function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map((s, idx) => `<div onclick="applyStatus(${id}, ${idx})">${s.name}</div>`).join(""); m.style.display='block'; }
-    function applyStatus(uId, sIdx) { const s = statusTypes[sIdx]; const b = document.createElement('div'); b.className = 'status-badge'; b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); broadcastData(); }
-    function addNewItemType() { itemTypes.push({ name: document.getElementById('itemName').value, power: parseFloat(document.getElementById('itemPower').value) }); renderItemTypeList(); broadcastData(); }
-    function renderItemTypeList() { document.getElementById('itemTypeList').innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px;">${it.name} <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
-    function useItemNow() { const it = itemTypes.find(i=>i.name===selections.itemSel); const c = findCardByName(selections.itemUser); if(!it || !c) return; c.querySelector('.hp').value = Math.min(parseFloat(c.querySelector('.max').value), parseFloat(c.querySelector('.hp').value) + it.power).toFixed(1); updateHP(c.id.split('_')[1]); log(`💊 ${selections.itemUser} ${it.name} 사용`, 'log-heal'); toggleModal('useItemPopup', false); broadcastData(); }
-    function getStatLabel(s) { const l = {atk:'공격력', int:'지능', hit:'명중%', eva:'회피%', critR:'치명%', critD:'크뎀%', sp:'영력', healEff:'치료효율', hp:'현재HP', max:'최대HP', dot:'지속피해', hot:'지속회복', skip:'행동불가'}; return l[s]; }
-    function getDefaultValue(s) { const d = {atk:50, int:20, hit:80, eva:15, critR:20, critD:150, sp:5, healEff:10, hp:100, max:100}; return d[s]; }
+    // 🎲 다이스 판정 로직 복구 (명중 수치 이하 시 성공)
+    function executeAction(m) {
+        const src = m === 'attack' ? selections.atkSrc : selections.healSrc;
+        const tars = m === 'attack' ? selections.atkTar : selections.healTar;
+        const sC = findCardByName(src);
+        if(!sC || tars.length === 0) return alert("대상 확인!");
+
+        tars.forEach(n => {
+            const tC = findCardByName(n); if(!tC) return;
+            const tId = tC.id.split('_')[1];
+
+            if(m === 'attack') {
+                const sHit = getModifiedStat(sC, 'hit');
+                const tEva = getModifiedStat(tC, 'eva');
+                const sCritR = getModifiedStat(sC, 'critR');
+                const sCritD = getModifiedStat(sC, 'critD') / 100;
+                
+                // 1. 명중 다이스 (1d100)
+                const hitRoll = Math.floor(Math.random() * 100) + 1;
+                if(hitRoll > sHit) {
+                    log(`💨 ${src} → ${n}: 공격 실패! (Dice: ${hitRoll} > Hit: ${sHit})`, 'log-dice');
+                    return;
+                }
+
+                // 2. 회피 다이스 (1d100)
+                const evaRoll = Math.floor(Math.random() * 100) + 1;
+                if(evaRoll <= tEva) {
+                    log(`🛡️ ${n} 회피 성공! (Dice: ${evaRoll} ≤ Eva: ${tEva})`, 'log-dice');
+                    return;
+                }
+
+                // 3. 데미지 계산 및 치명타 다이스
+                const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
+                let d = (sAtk * (sSp/3)) * (sSp*0.2) * (0.9 + Math.random()*0.2);
+                
+                const critRoll = Math.floor(Math.random() * 100) + 1;
+                let isCrit = false;
+                if(critRoll <= sCritR) {
+                    d *= sCritD;
+                    isCrit = true;
+                }
+
+                const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d);
+                tC.querySelector('.hp').value = nextHp.toFixed(1);
+                
+                let resultMsg = `${isCrit ? '💥 <b>CRITICAL!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해 (Hit:${hitRoll} / Crit:${critRoll})`;
+                log(resultMsg, isCrit ? 'log-atk' : '');
+
+                if(nextHp <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
+                updateHP(tId);
+            } else {
+                const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value);
+                let h = ((intel * eff) / 5) * (0.9 + Math.random()*0.2);
+                tC.querySelector('.hp').value = Math.min(parseFloat(tC.querySelector('.max').value), parseFloat(tC.querySelector('.hp').value) + h).toFixed(1);
+                updateHP(tId); log(`✨ ${src} → ${n}: ${h.toFixed(1)} 회복`, 'log-heal');
+            }
+        });
+    }
+
+    function addNewStatusType() {
+        const n = document.getElementById('msName').value, s = document.getElementById('msStat').value;
+        const p = parseFloat(document.getElementById('msPower').value) || 0, t = parseInt(document.getElementById('msTurn').value) || 0;
+        if(!n) return; statusTypes.push({ name: n, stat: s, power: p, turn: t }); renderStatusTypeList(); broadcastData();
+        ['msName','msPower','msTurn'].forEach(i => document.getElementById(i).value = '');
+    }
+
+    function renderStatusTypeList() {
+        document.getElementById('statusTypeList').innerHTML = statusTypes.map((s, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px; font-size:11px; border-bottom:1px solid #f0f0f0;">
+                <div><b>${s.name}</b> <span style="color:#666;">[${getStatLabel(s.stat)} ${s.power >= 0 ? '+' : ''}${s.power}% / ${s.turn}T]</span></div>
+                <button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();" style="background:none; color:red;">×</button>
+            </div>`).join("");
+    }
 
     function finishCurrentTurn(id) {
         const card = document.getElementById(`unitCard_${id}`); if(!card) return;
-        const name = card.querySelector('.name-input').value;
-        const max = parseFloat(card.querySelector('.max').value);
-        let dotDmg = 0; let hotHeal = 0;
+        const name = card.querySelector('.name-input').value, max = parseFloat(card.querySelector('.max').value);
+        let dot = 0, hot = 0;
         card.querySelectorAll('.st-stack').forEach(st => {
-            const power = parseFloat(st.dataset.power); const stacks = parseInt(st.value);
-            if(st.dataset.stat === 'dot') dotDmg += (max * (power/100)) * stacks;
-            if(st.dataset.stat === 'hot') hotHeal += (max * (power/100)) * stacks;
+            const p = parseFloat(st.dataset.power), stk = parseInt(st.value);
+            if(st.dataset.stat === 'dot') dot += (max * (p/100)) * stk;
+            if(st.dataset.stat === 'hot') hot += (max * (p/100)) * stk;
             let rem = parseInt(st.dataset.remain);
-            if(rem > 0) {
-                rem--; st.dataset.remain = rem;
-                const badge = st.closest('.status-badge');
-                if(rem === 0) badge.remove();
-                else badge.querySelector('span').textContent = `${badge.querySelector('span').textContent.split('(')[0]}(${rem}T)`;
-            }
+            if(rem > 0) { rem--; st.dataset.remain = rem; const b = st.closest('.status-badge'); if(rem === 0) b.remove(); else b.querySelector('span').textContent = `${b.querySelector('span').textContent.split('(')[0]}(${rem}T)`; }
         });
-        if(dotDmg > 0) { card.querySelector('.hp').value = Math.max(0, parseFloat(card.querySelector('.hp').value) - dotDmg).toFixed(1); log(`🔥 ${name}: DOT -${dotDmg.toFixed(1)}`, 'log-atk'); }
-        if(hotHeal > 0) { card.querySelector('.hp').value = Math.min(max, parseFloat(card.querySelector('.hp').value) + hotHeal).toFixed(1); log(`✨ ${name}: HOT +${hotHeal.toFixed(1)}`, 'log-heal'); }
-        updateHP(id); card.classList.remove('active-turn');
-        if(!turnList.slice(currentTurnPointer+1).some(t => t.id == id)) card.classList.add('turn-ended');
+        if(dot > 0) { card.querySelector('.hp').value = Math.max(0, parseFloat(card.querySelector('.hp').value) - dot).toFixed(1); log(`🔥 ${name}: DOT -${dot.toFixed(1)}`, 'log-atk'); }
+        if(hot > 0) { card.querySelector('.hp').value = Math.min(max, parseFloat(card.querySelector('.hp').value) + hot).toFixed(1); log(`✨ ${name}: HOT +${hot.toFixed(1)}`, 'log-heal'); }
+        updateHP(id); card.classList.remove('active-turn'); if(!turnList.slice(currentTurnPointer+1).some(t => t.id == id)) card.classList.add('turn-ended');
         currentTurnPointer++; processNextTurn(); broadcastData();
     }
 
     function processNextTurn() {
         document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn'));
         if(currentTurnPointer >= turnList.length) return log("🏁 라운드 종료를 눌러주세요.");
-        const cur = turnList[currentTurnPointer]; const card = document.getElementById(`unitCard_${cur.id}`);
+        const cur = turnList[currentTurnPointer], card = document.getElementById(`unitCard_${cur.id}`);
         if(!card || card.classList.contains('is-ko')) { currentTurnPointer++; return processNextTurn(); }
-        let skip = [...card.querySelectorAll('.st-stack')].find(st => st.dataset.stat === 'skip');
-        if(skip) { card.classList.add('active-turn'); log(`🚫 ${card.querySelector('.name-input').value} 행동 불가`, 'log-dice'); setTimeout(() => finishCurrentTurn(cur.id), 800); return; }
+        if([...card.querySelectorAll('.st-stack')].some(st => st.dataset.stat === 'skip')) { card.classList.add('active-turn'); log(`🚫 ${card.querySelector('.name-input').value} 행동 불가`, 'log-dice'); setTimeout(() => finishCurrentTurn(cur.id), 800); return; }
         card.classList.add('active-turn'); card.classList.remove('turn-ended'); toggleCard(cur.id, true);
         log(`▶ [${cur.order}] ${card.querySelector('.name-input').value} 차례`, 'log-dice'); broadcastData();
     }
 
+    function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
+    function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
+    function processEndPhase() { log(`━━━━ ROUND ${round} 결산 완료 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
+    function updateHP(id, b = true) { const c = document.getElementById(`unitCard_${id}`); if(!c) return; const hp = parseFloat(c.querySelector('.hp').value), max = parseFloat(c.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) c.classList.add('is-ko'); else c.classList.remove('is-ko'); if(b) broadcastData(); }
+    function toggleCard(id, f) { const b = document.getElementById(`cardBody_${id}`), a = document.getElementById(`arrow_${id}`); if(!b) return; const ex = f !== undefined ? f : !b.classList.contains('expanded'); if(ex) { b.classList.add('expanded'); a.style.transform="rotate(180deg)"; } else { b.classList.remove('expanded'); a.style.transform="rotate(0deg)"; } }
+    function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
+    function closeMenus() { document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display='none'); }
+    function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
+    function refreshDropdowns() { const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim()); ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList', 'itemSelList'].forEach(id => { const list = document.getElementById(id); if(!list) return; list.innerHTML = ""; (id === 'itemSelList' ? itemTypes.map(i=>i.name) : names).forEach(n => { const d = document.createElement('div'); d.textContent = n; d.onclick = () => { const k = id.replace('List', ''); if(id.includes('Src') || id.includes('User') || id.includes('Sel')) { selections[k] = n; document.getElementById(k+'Btn').textContent = n; } else { if(!selections[k].includes(n)) selections[k].push(n); renderTags(k); } }; list.appendChild(d); }); }); }
+    function renderTags(k) { document.getElementById(k+'Tags').innerHTML = selections[k].map(n => `<span class="target-tag">${n}<b onclick="selections['${k}']=selections['${k}'].filter(t=>t!=='${n}'); renderTags('${k}')">×</b></span>`).join(""); }
+    function findCardByName(n) { return [...document.querySelectorAll('.char-card')].find(c => c.querySelector('.name-input').value === n); }
+    function getModifiedStat(c, s) { let v = parseFloat(c.querySelector('.'+s).value), m = 0; c.querySelectorAll('.st-stack').forEach(i => { if(i.dataset.stat === s) m += (parseInt(i.value) * parseFloat(i.dataset.power)); }); return v * (1 + (m/100)); }
+    function rollDice() { const t = document.getElementById('diceType').value || "1d100", s = parseInt(document.getElementById('diceSuccess').value); const m = t.match(/(\d+)d(\d+)/); if(!m) return; let res = 0; for(let i=0; i<m[1]; i++) res += Math.floor(Math.random()*m[2])+1; let msg = `🎲 ${t}: <b>${res}</b>`; if(!isNaN(s)) msg += (res <= s) ? ` [성공]` : ` [실패]`; log(msg, 'log-dice'); }
+    function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map((s, idx) => `<div onclick="applyStatus(${id}, ${idx})">${s.name}</div>`).join(""); m.style.display='block'; }
+    function applyStatus(uId, sIdx) { const s = statusTypes[sIdx], targetName = document.getElementById(`unitCard_${uId}`).querySelector('.name-input').value; const b = document.createElement('div'); b.className = 'status-badge'; b.innerHTML = `<span>${s.name}${s.turn>0?'('+s.turn+'T)':''}</span><div><input type="number" value="1" class="st-stack" data-stat="${s.stat}" data-power="${s.power}" data-remain="${s.turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; document.getElementById(`unitCard_${uId}`).querySelector(`#unitActiveStatus_${uId}`).appendChild(b); log(`🔹 ${targetName}: [${s.name}] 부여`, 'log-dice'); broadcastData(); }
+    function addNewItemType() { itemTypes.push({ name: document.getElementById('itemName').value, power: parseFloat(document.getElementById('itemPower').value) }); renderItemTypeList(); broadcastData(); }
+    function renderItemTypeList() { document.getElementById('itemTypeList').innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px;">${it.name} <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
+    function useItemNow() { const it = itemTypes.find(i=>i.name===selections.itemSel), c = findCardByName(selections.itemUser); if(!it || !c) return; c.querySelector('.hp').value = Math.min(parseFloat(c.querySelector('.max').value), parseFloat(c.querySelector('.hp').value) + it.power).toFixed(1); updateHP(c.id.split('_')[1]); log(`💊 ${selections.itemUser} ${it.name} 사용`, 'log-heal'); toggleModal('useItemPopup', false); broadcastData(); }
+    function getStatLabel(s) { const l = {atk:'공격력', int:'지능', hit:'명중%', eva:'회피%', critR:'치명%', critD:'크뎀%', sp:'영력', healEff:'치료효율', hp:'현재HP', max:'최대HP', dot:'지속피해', hot:'지속회복', skip:'행동불가'}; return l[s]; }
+    function getDefaultValue(s) { const d = {atk:50, int:20, hit:80, eva:15, critR:20, critD:150, sp:5, healEff:10, hp:100, max:100}; return d[s]; }
+
+    function broadcastData() { if (!isMaster) return; const data = { round, logHtml: document.getElementById('logArea').innerHTML, statusTypes, itemTypes, units: [] }; document.querySelectorAll('.char-card').forEach(card => { const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; }); const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => { const st = b.querySelector('.st-stack'); activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain }); }); data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') }); }); socket.emit('sync_to_server', data); }
+    socket.on('update_from_server', (d) => { round = d.round; document.getElementById('roundNum').textContent = round; document.getElementById('logArea').innerHTML = d.logHtml; statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; renderStatusTypeList(); renderItemTypeList(); document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; d.units.forEach(u => createUnit(u.type, u)); });
     createUnit('player'); createUnit('enemy');
 </script>
 </body>
