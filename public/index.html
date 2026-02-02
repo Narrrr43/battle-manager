@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Ultimate Battle Manager v7.01</title>
+    <title>Ultimate Battle Manager v7.05</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; --skill-accent: #6c5ce7; }
@@ -53,11 +53,21 @@
         .admin-only { background: var(--turn-active); color: #000; }
         .viewer-only { background: #636e72; color: #fff; }
 
-        /* 스킬 메모 전용 스타일 */
-        .skill-item { background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 8px; border-left: 4px solid var(--skill-accent); position: relative; }
-        .skill-item b { display: block; color: var(--skill-accent); font-size: 13px; margin-bottom: 4px; }
-        .skill-item p { margin: 0; font-size: 11px; color: #636e72; white-space: pre-wrap; }
-        .skill-del-btn { position: absolute; top: 5px; right: 8px; color: #fab1a0; cursor: pointer; font-size: 14px; }
+        /* 스킬 메모 그룹화 및 등급 색상 스타일 */
+        .skill-group { margin-bottom: 15px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #fff; }
+        .skill-group-header { background: #f1f2f6; padding: 6px 10px; font-size: 12px; font-weight: 800; color: #2d3436; border-bottom: 1px solid #eee; }
+        .skill-item { padding: 10px; border-bottom: 1px solid #f9f9f9; position: relative; }
+        .skill-item:last-child { border-bottom: none; }
+        .skill-type-tag { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-right: 5px; vertical-align: middle; }
+        .type-normal { background: #e9ecef; color: #adb5bd; } /* 일반: 회색 */
+        .type-innate { background: #e7f1ff; color: #4361ee; } /* 고유주술: 파란색 */
+        .type-unique { background: #fff0f0; color: #e63946; } /* 유일술식: 빨간색 */
+        .type-prob { background: #f3f0ff; color: #8e44ad; } /* 개연주술: 보라색 */
+        .type-artifact { background: #fff9db; color: #fab005; } /* 유성물: 금색 */
+        .skill-item b.skill-name { font-size: 12px; color: #2d3436; }
+        .skill-item p { margin: 5px 0 0 0; font-size: 11px; color: #636e72; white-space: pre-wrap; line-height: 1.4; }
+        .skill-del-btn { position: absolute; top: 8px; right: 8px; color: #fab1a0; cursor: pointer; font-size: 14px; }
+        .is-viewer .skill-master-ui { display: none !important; }
     </style>
 </head>
 <body onclick="closeMenus()" class="is-viewer">
@@ -93,26 +103,24 @@
     <button onclick="toggleModal('itemManagerMenu', false)" style="width:100%; margin-top:8px; padding:8px; background:#eee; font-size:11px;">닫기</button>
 </div>
 
-<div id="useItemPopup" class="modal">
-    <h4 style="margin:0 0 10px 0;">👜 아이템 사용</h4>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="custom-select" onclick="openSelect(event, 'itemSelList')" id="itemSelBtn">아이템 선택</div>
-        <div id="itemSelList" class="dropdown-menu"></div>
-        <div class="custom-select" onclick="openSelect(event, 'itemUserList')" id="itemUserBtn">대상자</div>
-        <div id="itemUserList" class="dropdown-menu"></div>
-        <button onclick="useItemNow()" style="background:var(--heal-accent); color:white; padding:12px; font-size:13px;">즉시 사용</button>
-    </div>
-    <button onclick="toggleModal('useItemPopup', false)" style="width:100%; margin-top:12px; padding:8px; background:#eee; font-size:11px;">취소</button>
-</div>
-
 <div id="skillMemoMenu" class="modal">
     <h4 style="margin:0 0 10px 0;">📜 스킬 & 효과 메모</h4>
-    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
-        <input type="text" id="skName" placeholder="스킬/효과 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-        <textarea id="skDesc" placeholder="상세 효과 설명" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px; height:60px; resize:none;"></textarea>
-        <button onclick="addNewSkill()" style="background:var(--skill-accent); color:white; padding:10px; font-size:12px;">메모 추가</button>
+    <div class="skill-master-ui" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; background:#f9f9f9; padding:10px; border-radius:8px;">
+        <div style="display:flex; gap:4px;">
+            <div class="custom-select" onclick="openSelect(event, 'skillOwnerList')" id="skillOwnerBtn" style="background:#fff; flex:1;">캐릭터 선택</div>
+            <select id="skType" style="flex:0.8; padding:6px; border:1px solid #eee; border-radius:5px; font-size:11px;">
+                <option value="고유주술">고유주술</option>
+                <option value="일반" selected>일반</option>
+                <option value="유일술식">유일술식</option>
+                <option value="개연주술">개연주술</option>
+                <option value="유성물">유성물</option>
+            </select>
+        </div>
+        <input type="text" id="skName" placeholder="스킬 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+        <textarea id="skDesc" placeholder="상세 효과 설명" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px; height:50px; resize:none;"></textarea>
+        <button onclick="addNewSkill()" style="background:var(--skill-accent); color:white; padding:8px; font-size:12px;">메모 추가</button>
     </div>
-    <div id="skillListArea" style="max-height:250px; overflow-y:auto; border-top:1px solid #eee; padding-top:10px;"></div>
+    <div id="skillListArea" style="max-height:300px; overflow-y:auto;"></div>
     <button onclick="toggleModal('skillMemoMenu', false)" style="width:100%; margin-top:12px; padding:8px; background:#eee; font-size:11px;">닫기</button>
 </div>
 
@@ -163,13 +171,12 @@
     <div class="admin-control" style="display:flex; gap:5px; background:white; padding:8px; border-radius:10px; border:1px solid var(--border);">
         <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:8px; font-size:11px;">⚙️ 상태이상 설정</button>
         <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:8px; font-size:11px;">💊 아이템 설정</button>
-        <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:8px; font-size:11px;">👜 아이템 사용</button>
     </div>
 
-    <div class="admin-control" style="display:flex; gap:5px;">
-        <button onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
-        <button onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
-        <button onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 전체 리셋</button>
+    <div style="display:flex; gap:5px;">
+        <button class="admin-control" onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
+        <button class="admin-control" onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
+        <button class="admin-control" onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 전체 리셋</button>
         <button onclick="toggleModal('skillMemoMenu', true)" style="background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
         <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
     </div>
@@ -189,61 +196,58 @@
     const socket = io();
     const MASTER_PW = "qazplm10110925";
     let isMaster = false; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
-    let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "" };
+    let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "", skillOwner: "" };
     let turnList = []; let currentTurnPointer = -1;
 
     function askMasterPassword() { const pw = prompt("비밀번호:"); if (pw === MASTER_PW) { isMaster = true; document.body.classList.remove('is-viewer'); document.getElementById('masterBadge').textContent = "👑 마스터 권한 활성화"; document.getElementById('masterBadge').className = "admin-only"; alert("인증 성공!"); } }
     
-    // [추가피해 기능 유지]
-    function executeExtraDamage(id) {
-        if(!isMaster) return;
-        const card = document.getElementById(`unitCard_${id}`);
-        const input = card.querySelector('.extra-dmg-input');
-        const percent = parseFloat(input.value);
-        if(isNaN(percent) || selections.atkTar.length === 0) return alert("피해 % 입력 및 공격 대상을 선택해주세요!");
-        const srcName = card.querySelector('.name-input').value;
-        const baseAtk = getModifiedStat(card, 'atk');
-        const finalDmg = baseAtk * (percent / 100);
-        selections.atkTar.forEach(tarName => {
-            const tC = findCardByName(tarName); if(!tC) return;
-            const tEva = getModifiedStat(tC, 'eva');
-            const evaRoll = Math.floor(Math.random() * 100) + 1;
-            if(evaRoll <= tEva) {
-                log(`🛡️ ${tarName} 회피! (추가피해 무효) [Eva:${evaRoll}/${tEva}]`, 'log-dice');
-            } else {
-                const curHp = parseFloat(tC.querySelector('.hp').value);
-                tC.querySelector('.hp').value = Math.max(0, curHp - finalDmg).toFixed(1);
-                log(`💥 ${srcName} → ${tarName}: <b>${finalDmg.toFixed(1)}</b> 추가 피해 (공격력 ${percent}%)`, 'log-atk');
-                updateHP(tC.id.split('_')[1]);
-            }
-        });
-        broadcastData();
-    }
-
-    // [스킬 메모 기능 로직]
+    // [스킬 메모 로직]
     function addNewSkill() {
         if(!isMaster) return;
+        const owner = selections.skillOwner || "공통/기타";
+        const type = document.getElementById('skType').value;
         const name = document.getElementById('skName').value;
         const desc = document.getElementById('skDesc').value;
         if(!name || !desc) return alert("이름과 설명을 입력해주세요.");
-        skillData.push({ name, desc });
+        
+        skillData.push({ owner, type, name, desc });
         document.getElementById('skName').value = '';
         document.getElementById('skDesc').value = '';
         renderSkillList();
         broadcastData();
     }
+
     function renderSkillList() {
         const area = document.getElementById('skillListArea');
-        area.innerHTML = skillData.map((s, idx) => `<div class="skill-item"><span class="skill-del-btn" onclick="removeSkill(${idx})">×</span><b>${s.name}</b><p>${s.desc}</p></div>`).join('');
-    }
-    function removeSkill(idx) {
-        if(!isMaster) return;
-        skillData.splice(idx, 1);
-        renderSkillList();
-        broadcastData();
+        if (!skillData || skillData.length === 0) { area.innerHTML = "<p style='text-align:center; font-size:11px; color:#999; padding:20px;'>등록된 메모가 없습니다.</p>"; return; }
+        
+        const groups = skillData.reduce((acc, obj) => {
+            const key = obj.owner; if (!acc[key]) acc[key] = []; acc[key].push(obj); return acc;
+        }, {});
+
+        const typeClassMap = { '일반':'type-normal', '고유주술':'type-innate', '유일술식':'type-unique', '개연주술':'type-prob', '유성물':'type-artifact' };
+
+        area.innerHTML = Object.keys(groups).map(owner => `
+            <div class="skill-group">
+                <div class="skill-group-header">👤 ${owner}</div>
+                ${groups[owner].map(s => {
+                    const originalIdx = skillData.findIndex(x => x === s);
+                    const cls = typeClassMap[s.type] || 'type-normal';
+                    return `
+                    <div class="skill-item">
+                        <span class="skill-del-btn skill-master-ui" onclick="removeSkill(${originalIdx})">×</span>
+                        <span class="skill-type-tag ${cls}">${s.type}</span>
+                        <b class="skill-name">${s.name}</b>
+                        <p>${s.desc}</p>
+                    </div>`;
+                }).join('')}
+            </div>
+        `).join('');
     }
 
-    // [시스템 유지 및 복구]
+    function removeSkill(idx) { if(!isMaster) return; skillData.splice(idx, 1); renderSkillList(); broadcastData(); }
+
+    // [핵심 시스템 함수]
     function createUnit(t, s = null) {
         unitIdx++; const id = unitIdx; const c = document.getElementById(t === 'player' ? 'playerList' : 'enemyList');
         const div = document.createElement('div'); div.className = 'char-card'; div.id = `unitCard_${id}`;
@@ -310,17 +314,27 @@
         card.classList.add('turn-ended'); card.classList.remove('active-turn'); processNextTurn(); broadcastData();
     }
 
-    function processNextTurn() {
-        if(currentTurnPointer < 0 || currentTurnPointer >= turnList.length) return;
-        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn'));
-        const next = turnList[currentTurnPointer];
-        const card = document.getElementById(`unitCard_${next.id}`);
-        if(card) {
-            if(card.classList.contains('is-ko')) { currentTurnPointer++; processNextTurn(); return; }
-            let skip = false; card.querySelectorAll('.status-badge').forEach(b => { if(b.querySelector('.st-stack').dataset.stat === 'skip') skip = true; });
-            if(skip) { log(`⛔ ${card.querySelector('.name-input').value}: 행동 불능!`, 'log-dice'); card.classList.add('active-turn'); setTimeout(() => { finishCurrentTurn(next.id); }, 500); }
-            else { card.classList.add('active-turn'); toggleCard(next.id, true); currentTurnPointer++; }
-        } else { currentTurnPointer++; processNextTurn(); }
+    function executeExtraDamage(id) {
+        if(!isMaster) return;
+        const card = document.getElementById(`unitCard_${id}`);
+        const input = card.querySelector('.extra-dmg-input');
+        const percent = parseFloat(input.value);
+        if(isNaN(percent) || selections.atkTar.length === 0) return alert("피해 % 및 대상을 선택하세요!");
+        const srcName = card.querySelector('.name-input').value;
+        const baseAtk = getModifiedStat(card, 'atk');
+        const finalDmg = baseAtk * (percent / 100);
+        selections.atkTar.forEach(tarName => {
+            const tC = findCardByName(tarName); if(!tC) return;
+            const tEva = getModifiedStat(tC, 'eva');
+            if(Math.floor(Math.random() * 100) + 1 <= tEva) { log(`🛡️ ${tarName} 회피!`, 'log-dice'); }
+            else {
+                const curHp = parseFloat(tC.querySelector('.hp').value);
+                tC.querySelector('.hp').value = Math.max(0, curHp - finalDmg).toFixed(1);
+                log(`💥 ${srcName} → ${tarName}: <b>${finalDmg.toFixed(1)}</b> 피해 (${percent}%)`, 'log-atk');
+                updateHP(tC.id.split('_')[1]);
+            }
+        });
+        broadcastData();
     }
 
     function executeAction(m) {
@@ -331,19 +345,15 @@
             const tId = tC.id.split('_')[1];
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
-                const hitRoll = Math.floor(Math.random() * 100) + 1;
-                if(hitRoll > sHit) return log(`💨 ${src} → ${n}: [Hit:${hitRoll}/${sHit}] 실패!`, 'log-dice');
-                const evaRoll = Math.floor(Math.random() * 100) + 1;
-                if(evaRoll <= tEva) return log(`🛡️ ${n} 회피! [Eva:${evaRoll}/${tEva}]`, 'log-dice');
+                if(Math.floor(Math.random() * 100) + 1 > sHit) return log(`💨 ${src} → ${n} 빗나감!`, 'log-dice');
+                if(Math.floor(Math.random() * 100) + 1 <= tEva) return log(`🛡️ ${n} 회피!`, 'log-dice');
                 const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
                 let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
-                const critRoll = Math.floor(Math.random() * 100) + 1;
-                let crit = false; if(critRoll <= sCritR) { d *= sCritD; crit = true; }
+                if(Math.floor(Math.random() * 100) + 1 <= sCritR) { d *= sCritD; log(`💥 <b>CRIT!</b>`, 'log-atk'); }
                 d *= (0.9 + Math.random() * 0.2);
                 tC.querySelector('.hp').value = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d).toFixed(1);
-                log(`${crit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, 'log-atk');
-                if(parseFloat(tC.querySelector('.hp').value) <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
+                log(`⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, 'log-atk');
                 updateHP(tId);
             } else {
                 const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), max = parseFloat(tC.querySelector('.max').value);
@@ -355,32 +365,46 @@
         broadcastData();
     }
 
+    function processNextTurn() {
+        if(currentTurnPointer < 0 || currentTurnPointer >= turnList.length) return;
+        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn'));
+        const next = turnList[currentTurnPointer];
+        const card = document.getElementById(`unitCard_${next.id}`);
+        if(card && !card.classList.contains('is-ko')) {
+            let skip = false; card.querySelectorAll('.status-badge').forEach(b => { if(b.querySelector('.st-stack').dataset.stat === 'skip') skip = true; });
+            if(skip) { log(`⛔ ${card.querySelector('.name-input').value}: 행동 불능!`, 'log-dice'); card.classList.add('active-turn'); setTimeout(() => finishCurrentTurn(next.id), 500); }
+            else { card.classList.add('active-turn'); toggleCard(next.id, true); currentTurnPointer++; }
+        } else { currentTurnPointer++; processNextTurn(); }
+    }
+
+    // [유틸리티 함수]
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
     function processEndPhase() { log(`━━━━ ROUND ${round} 결산 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
     function updateHP(id, b = true) { const c = document.getElementById(`unitCard_${id}`); if(!c) return; const hp = parseFloat(c.querySelector('.hp').value), max = parseFloat(c.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) c.classList.add('is-ko'); else c.classList.remove('is-ko'); if(b) broadcastData(); }
     function toggleCard(id, f) { const b = document.getElementById(`cardBody_${id}`), a = document.getElementById(`arrow_${id}`); if(!b) return; const ex = f !== undefined ? f : !b.classList.contains('expanded'); if(ex) { b.classList.add('expanded'); a.style.transform="rotate(180deg)"; } else { b.classList.remove('expanded'); a.style.transform="rotate(0deg)"; } }
-    function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
+    function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; if(sh && id === 'skillMemoMenu') renderSkillList(); }
     function closeMenus() { document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display='none'); }
     function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
     function getStatLabel(s) { return {atk:'공격',int:'지능',hit:'명중',eva:'회피',critR:'치확',critD:'치뎀',sp:'영력',healEff:'치료',hp:'HP',max:'MAX'}[s] || s; }
     function getDefaultValue(s) { return {hit:100,critD:150,hp:100,max:100,atk:10,int:10,eva:0,critR:5,sp:10,healEff:100}[s] || 0; }
     function getModifiedStat(card, type) { let base = parseFloat(card.querySelector('.' + type).value), mod = 0; card.querySelectorAll('.status-badge').forEach(badge => { const st = badge.querySelector('.st-stack'); if(st.dataset.stat === type) mod += (parseFloat(st.dataset.power) * parseInt(st.value)); }); return base * (1 + mod / 100); }
-    function findCardByName(n) { return Array.from(document.querySelectorAll('.char-card')).find(c => c.querySelector('.name-input').value === n); }
+    function findCardByName(n) { return Array.from(document.querySelectorAll('.name-input')).find(c => c.value === n)?.closest('.char-card'); }
+    
     function refreshDropdowns() {
         const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim());
-        ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList'].forEach(id => { const list = document.getElementById(id); if(list) list.innerHTML = names.map(n => `<div onclick="selectTarget('${id}', '${n}')">${n}</div>`).join(""); });
-        if(document.getElementById('itemSelList')) document.getElementById('itemSelList').innerHTML = itemTypes.map(it => `<div onclick="selectTarget('itemSelList', '${it.name}')">${it.name}</div>`).join("");
+        ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'skillOwnerList'].forEach(id => { const list = document.getElementById(id); if(list) list.innerHTML = (id === 'skillOwnerList' ? ["공통/기타", ...names] : names).map(n => `<div onclick="selectTarget('${id}', '${n}')">${n}</div>`).join(""); });
     }
+    
     function selectTarget(listId, name) {
         if(listId === 'atkSrcList') { selections.atkSrc = name; document.getElementById('atkSrcBtn').textContent = name; }
         else if(listId === 'atkTarList') { if(!selections.atkTar.includes(name)) selections.atkTar.push(name); renderTags('atk'); }
         else if(listId === 'healSrcList') { selections.healSrc = name; document.getElementById('healSrcBtn').textContent = name; }
         else if(listId === 'healTarList') { if(!selections.healTar.includes(name)) selections.healTar.push(name); renderTags('heal'); }
-        else if(listId === 'itemSelList') { selections.itemSel = name; document.getElementById('itemSelBtn').textContent = name; }
-        else if(listId === 'itemUserList') { selections.itemUser = name; document.getElementById('itemUserBtn').textContent = name; }
+        else if(listId === 'skillOwnerList') { selections.skillOwner = name; document.getElementById('skillOwnerBtn').textContent = name; }
         closeMenus();
     }
+    
     function renderTags(m) { const area = document.getElementById(m + 'TarTags'); area.innerHTML = selections[m + 'Tar'].map(n => `<span class="target-tag">${n}<b onclick="removeTag('${m}', '${n}')">×</b></span>`).join(""); }
     function removeTag(m, n) { selections[m + 'Tar'] = selections[m + 'Tar'].filter(x => x !== n); renderTags(m); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map(s => `<div onclick="addStatusToUnit(${id}, '${s.name}', '${s.stat}', ${s.power}, ${s.turn})">${s.name}</div>`).join(""); m.style.display = 'block'; }
@@ -390,7 +414,6 @@
     function renderStatusTypeList() { const list = document.getElementById('statusTypeList'); if(!list) return; list.innerHTML = statusTypes.map((s, idx) => `<div style="padding:6px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;"><span><b>${s.name}</b> (${getStatLabel(s.stat)} ${s.power}${s.stat==='skip'?'':'%'})</span><button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();" style="color:red; background:none;">×</button></div>`).join(""); }
     function addNewItemType() { const n = document.getElementById('itemName').value, p = document.getElementById('itemPower').value; if(!n || !p) return; itemTypes.push({ name:n, power:p }); renderItemTypeList(); refreshDropdowns(); broadcastData(); }
     function renderItemTypeList() { const list = document.getElementById('itemTypeList'); if(!list) return; list.innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${it.name} (+${it.power}) <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
-    function useItemNow() { const item = itemTypes.find(it => it.name === selections.itemSel), card = findCardByName(selections.itemUser); if(!item || !card) return; const hp = card.querySelector('.hp'), max = card.querySelector('.max'); hp.value = Math.min(parseFloat(max.value), parseFloat(hp.value) + parseFloat(item.power)).toFixed(1); log(`💊 ${selections.itemUser}: [${item.name}] 사용, <b>${item.power}</b> 회복`, 'log-heal'); updateHP(card.id.split('_')[1]); toggleModal('useItemPopup', false); }
     
     function exportData() {
         const data = { round, statusTypes, itemTypes, skillData, units: [] };
@@ -419,6 +442,7 @@
         reader.readAsText(f);
     }
     function resetAllData() { if(!isMaster) return; if(confirm("초기화?")) { round = 1; statusTypes = []; itemTypes = []; skillData = []; unitIdx = 0; document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; document.getElementById('logArea').innerHTML = ''; document.getElementById('roundNum').textContent = "1"; renderStatusTypeList(); renderItemTypeList(); renderSkillList(); broadcastData(); } }
+    
     function broadcastData() { if(isMaster) socket.emit('battleUpdate', { round, statusTypes, itemTypes, skillData, htmlP: document.getElementById('playerList').innerHTML, htmlE: document.getElementById('enemyList').innerHTML, log: document.getElementById('logArea').innerHTML }); }
 
     socket.on('battleUpdate', (d) => {
