@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Ultimate Battle Manager v7.07</title>
+    <title>Ultimate Battle Manager v7.08</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; --skill-accent: #6c5ce7; }
@@ -359,7 +359,7 @@
     function removeTag(m, n) { selections[m + 'Tar'] = selections[m + 'Tar'].filter(x => x !== n); renderTags(m); }
     function updateHP(id, b = true) { const c = document.getElementById(`unitCard_${id}`); if(!c) return; const hp = parseFloat(c.querySelector('.hp').value), max = parseFloat(c.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) c.classList.add('is-ko'); else c.classList.remove('is-ko'); if(b) broadcastData(); }
     
-    // [기본 시스템 함수]
+    // [시스템 제어 및 저장/불러오기]
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
     function processNextTurn() { if(currentTurnPointer < 0 || currentTurnPointer >= turnList.length) return; const next = turnList[currentTurnPointer]; const card = document.getElementById(`unitCard_${next.id}`); if(card && !card.classList.contains('is-ko')) { card.classList.add('active-turn'); toggleCard(next.id, true); currentTurnPointer++; } else { currentTurnPointer++; processNextTurn(); } }
     function processEndPhase() { log(`━━━━ ROUND ${round} 결산 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
@@ -369,8 +369,33 @@
     function renderStatusTypeList() { const list = document.getElementById('statusTypeList'); list.innerHTML = statusTypes.map((s, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;"><span>${s.name}</span><button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();">×</button></div>`).join(""); }
     function addNewItemType() { const n = document.getElementById('itemName').value, p = document.getElementById('itemPower').value; if(!n || !p) return; itemTypes.push({ name:n, power:p }); renderItemTypeList(); refreshDropdowns(); broadcastData(); }
     function renderItemTypeList() { const list = document.getElementById('itemTypeList'); list.innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${it.name} (+${it.power}) <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
-    function exportData() { /* 저장 로직 생략(이전과 동일) */ }
-    function importData(e) { /* 불러오기 로직 생략(이전과 동일) */ }
+    
+    function exportData() {
+        const data = { round, statusTypes, itemTypes, skillData, units: [] };
+        document.querySelectorAll('.char-card').forEach(card => {
+            const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
+            const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => {
+                const st = b.querySelector('.st-stack');
+                activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain });
+            });
+            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') });
+        });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click();
+    }
+    function importData(e) {
+        const f = e.target.files[0]; if(!f) return;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            const d = JSON.parse(re.target.result);
+            document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = '';
+            unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round;
+            statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; skillData = d.skillData || [];
+            renderStatusTypeList(); renderItemTypeList(); renderSkillList();
+            if(d.units) d.units.forEach(u => createUnit(u.type, u));
+            refreshDropdowns(); broadcastData();
+        };
+        reader.readAsText(f);
+    }
     function resetAllData() { if(confirm("초기화?")) { location.reload(); } }
     function broadcastData() { if(isMaster) socket.emit('battleUpdate', { round, statusTypes, itemTypes, skillData, htmlP: document.getElementById('playerList').innerHTML, htmlE: document.getElementById('enemyList').innerHTML, log: document.getElementById('logArea').innerHTML }); }
     socket.on('battleUpdate', (d) => { if(!isMaster) { round = d.round; document.getElementById('roundNum').textContent = round; statusTypes = d.statusTypes; itemTypes = d.itemTypes; skillData = d.skillData || []; document.getElementById('playerList').innerHTML = d.htmlP; document.getElementById('enemyList').innerHTML = d.htmlE; document.getElementById('logArea').innerHTML = d.log; renderSkillList(); } });
