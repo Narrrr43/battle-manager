@@ -502,14 +502,40 @@
 
     function renderSkillList() {
         const area = document.getElementById('skillListArea');
-        const grouped = skillData.reduce((acc, s) => { if(!acc[s.owner]) acc[s.owner] = []; acc[s.owner].push(s); return acc; }, {});
-        area.innerHTML = Object.keys(grouped).map(owner => `
-            <div class="skill-group"><div class="skill-group-header">👤 ${owner}</div>
-            ${grouped[owner].map((s, idx) => `
-                <div style="padding:8px; border-bottom:1px solid #f9f9f9; font-size:11px;">
-                    <b style="color:var(--skill-accent)">[${s.type}] ${s.name}</b><br><span style="color:#666">${s.desc}</span>
-                    <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" style="float:right; color:red; background:none;">×</button>
-                </div>`).join('')}</div>`).join('');
+        if (!area) return;
+    
+        // 데이터를 캐릭터별로 그룹화
+        const grouped = skillData.reduce((acc, s) => { 
+            if(!acc[s.owner]) acc[s.owner] = []; 
+            acc[s.owner].push(s); 
+            return acc; 
+        }, {});
+    
+        area.innerHTML = Object.keys(grouped).map(owner => {
+            // ID에서 공백을 제거하여 고유한 ID 생성 (접기/펴기 제어용)
+            const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
+            
+            return `
+                <div class="skill-group" style="margin-bottom:5px; border:1px solid #eee; border-radius:4px; overflow:hidden;">
+                    <div class="skill-group-header" 
+                         onclick="const el = document.getElementById('${safeId}'); el.style.display = (el.style.display === 'none' ? 'block' : 'none');"
+                         style="background:#f8f9fa; padding:8px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span>👤 ${owner} (${grouped[owner].length})</span>
+                        <span style="font-size:10px; color:#999;">클릭하여 열기/닫기</span>
+                    </div>
+                    
+                        <div id="${safeId}" class="skill-group-content" style="display:none;">
+                        ${grouped[owner].map((s, idx) => `
+                            <div style="padding:8px; border-bottom:1px solid #f9f9f9; font-size:11px; background:white; position:relative;">
+                                <b style="color:var(--skill-accent)">[${s.type}] ${s.name}</b>
+                                <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
+                                        style="position:absolute; top:8px; right:8px; color:red; background:none; border:none; cursor:pointer;">×</button>
+                                <br>
+                                <span style="color:#666; display:block; margin-top:4px; line-height:1.4;">${s.desc}</span>
+                            </div>`).join('')}
+                    </div>
+                </div>`;
+        }).join('');
     }
 
     function deleteSkill(owner, idx) { 
