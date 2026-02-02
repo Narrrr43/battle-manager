@@ -116,7 +116,7 @@
         <input type="text" id="msName" placeholder="효과 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
         <div style="display:flex; gap:4px;">
             <select id="msStat" style="flex:1.2; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-                <option value="atk">공격력 %</option><option value="int">지능 %</option><option value="hit">명중률 %</option><option value="eva">회피율 %</option><option value="critR">치명타 확률 %</option><option value="critD">치명타 데미지 %</option><option value="dot">지속피해(MAX HP %)</option><option value="hot">지속회복(MAX HP %)</option><option value="skip">⛔ 행동 불가</option>
+                <option value="atk">공격력 %</option><option value="int">지능 %</option><option value="hit">명중률 %</option><option value="eva">회피율 %</option><option value="critR">치명타 확률 %</option><option value="critD">치명타 데미지 %</option><option value="dot">지속피해(MAX HP %)</option><option value="hot">지속회복(MAX HP %)</option><option value="skip">⛔ 행동 불가</option><option value="noheal">🚫 치유 불가</option><option value="reflect">🛡️ 데미지 반사</option><option value="drain">🩸 공격 시 흡혈</option><option value="none">✨ 특수 효과 (도발 등)</option>
             </select>
             <input type="number" id="msPower" placeholder="수치" style="flex:0.8; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
         </div>
@@ -542,7 +542,26 @@
     function closeAllModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); document.getElementById('overlay').style.display = 'none'; }
     function closeMenus() { document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display='none'); }
     function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
-    function getStatLabel(s) { return {atk:'공격',int:'지능',hit:'명중',eva:'회피',critR:'치확',critD:'치뎀',sp:'영력',healEff:'치료',hp:'HP',max:'MAX'}[s] || s; }
+
+    function getStatLabel(stat) {
+        switch(stat) {
+            case 'atk': return '공격력';
+            case 'int': return '지능';
+            case 'hit': return '명중률';
+            case 'eva': return '회피율';
+            case 'critR': return '치명타 확률';
+            case 'critD': return '치명타 데미지';
+            case 'dot': return '지속피해';
+            case 'hot': return '지속회복';
+            case 'skip': return '행동불능';
+            case 'noheal': return '치유불가';
+            case 'reflect': return '반사';    
+            case 'drain': return '흡혈';     
+            case 'none': return '특수효과';    
+            default: return stat;
+        }
+    }
+    
     function getDefaultValue(s) { return {hit:100,critD:150,hp:100,max:100,atk:10,int:10,eva:0,critR:5,sp:10,healEff:100}[s] || 0; }
     function getModifiedStat(card, type) {
         let base = parseFloat(card.querySelector('.' + type).value), mod = 0;
