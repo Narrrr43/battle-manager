@@ -65,6 +65,27 @@
             100% { transform: translateX(0); }
         }
         .shake-log { animation: logShake 0.3s ease-in-out; border-left: 5px solid #ff4757 !important; background: #fff5f5; }
+
+        /* 1. 카드 피격 흔들림 */
+        @keyframes cardShake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, 0px) rotate(-1deg); }
+            40% { transform: translate(3px, 2px) rotate(1deg); }
+            60% { transform: translate(-1px, -1px) rotate(1deg); }
+            80% { transform: translate(-3px, 1px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(0deg); }
+        }
+        .shake-card { animation: cardShake 0.4s ease-in-out; }
+        
+        /* 2. 체력바 색상 변동 (기본값 설정) */
+        .hp-bar-fill { transition: width 0.3s ease, background-color 0.3s ease; }
+        .hp-safe { background-color: #2ecc71 !important; }    /* 녹색 */
+        .hp-warning { background-color: #f1c40f !important; } /* 황색 */
+        .hp-danger { background-color: #e74c3c !important; }  /* 적색 */
+        
+        /* 3. 상태이상(행동불능 등) 시각 효과 */
+        .card-disabled { filter: grayscale(0.8) brightness(0.7); pointer-events: none; }
+        .card-dot-effect { box-shadow: inset 0 0 15px rgba(155, 89, 182, 0.6); border: 2px solid #9b59b6 !important; }
         
     </style>
 </head>
@@ -328,45 +349,91 @@
         } else { currentTurnPointer++; processNextTurn(); }
     }
 
-    // [전투 액션 로직 - 원본 유지]
+    // 기본 전투 시스템, 스크립트
     function executeAction(m) {
         const src = m === 'attack' ? selections.atkSrc : selections.healSrc;
         const tars = m === 'attack' ? selections.atkTar : selections.healTar;
         const sC = findCardByName(src); if(!sC || tars.length === 0) return alert("대상 확인!");
+    
         tars.forEach(n => {
             const tC = findCardByName(n); if(!tC) return;
             const tId = tC.id.split('_')[1];
+    
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
                 const hitRoll = Math.floor(Math.random() * 100) + 1;
                 if(hitRoll > sHit) return log(`💨 ${src} → ${n}: [Hit:${hitRoll}/${sHit}] 실패!`, 'log-dice');
                 const evaRoll = Math.floor(Math.random() * 100) + 1;
                 if(evaRoll <= tEva) return log(`🛡️ ${n} 회피! [Eva:${evaRoll}/${tEva}]`, 'log-dice');
+                
                 const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
+                
+                // 1. 데미지 계산 (난수 선적용 -> 치명타 후적용)
                 let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
-                const critRoll = Math.floor(Math.random() * 100) + 1;
-                let isCrit = false; if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 d *= (0.9 + Math.random() * 0.2);
-                const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d);
-                tC.querySelector('.hp').value = nextHp.toFixed(1);
+                const critRoll = Math.floor(Math.random() * 100) + 1;
+                let isCrit = false; 
+                if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 
-                // 마스터님 원본 로그 문구 유지 + 크리티컬 시 shake-log 클래스 추가
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                // 2. 자연수 변환 및 HP 적용
+                const finalD = Math.round(d);
+                const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - finalD);
+                tC.querySelector('.hp').value = nextHp;
+    
+                // 3. [추가] 피격 카드 흔들림 효과
+                if(finalD > 0) {
+                    tC.classList.remove('shake-card');
+                    void tC.offsetWidth; // 애니메이션 리셋
+                    tC.classList.add('shake-card');
+                    setTimeout(() => tC.classList.remove('shake-card'), 400);
+                }
+    
+                // 4. 로그 출력
+                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 
-                if(nextHp <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 updateHP(tId);
             } else {
+                // 치료 로직
                 const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
                 let h = (((maxHp * 0.33) / 80 * eff) + (intel * 0.2));
                 h *= (0.95 + Math.random() * 0.1);
-                tC.querySelector('.hp').value = Math.min(maxHp, parseFloat(tC.querySelector('.hp').value) + h).toFixed(1);
-                updateHP(tId); log(`✨ ${src} → ${n}: <b>${h.toFixed(1)}</b> 회복`, 'log-heal');
+                
+                const finalH = Math.round(h);
+                const curHp = parseFloat(tC.querySelector('.hp').value);
+                tC.querySelector('.hp').value = Math.min(maxHp, curHp + finalH);
+                
+                updateHP(tId); 
+                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복`, 'log-heal');
             }
         });
         broadcastData();
     }
 
+    // 체력바
+    function updateHP(id) {
+        const card = document.getElementById(`char_${id}`);
+        if(!card) return;
+        
+        const hpInput = card.querySelector('.hp');
+        const maxInput = card.querySelector('.max');
+        const bar = card.querySelector('.hp-bar-fill');
+        
+        const hp = parseFloat(hpInput.value) || 0;
+        const max = parseFloat(maxInput.value) || 1;
+        const percent = Math.min(100, Math.max(0, (hp / max) * 100));
+    
+        // 체력 바 길이 조정
+        bar.style.width = percent + "%";
+    
+        // 2번 기능: 체력 비율에 따른 색상 변경
+        bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
+        if (percent > 70) bar.classList.add('hp-safe');
+        else if (percent > 30) bar.classList.add('hp-warning');
+        else bar.classList.add('hp-danger');
+    }
+    
     // [신규 스킬 메모 기능 로직]
     function addNewSkill() {
         const owner = selections.skillOwner, name = document.getElementById('skName').value, desc = document.getElementById('skDesc').value, type = document.getElementById('skType').value;
