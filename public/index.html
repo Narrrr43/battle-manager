@@ -76,12 +76,16 @@
             100% { transform: translate(1px, -2px) rotate(0deg); }
         }
         .shake-card { animation: cardShake 0.4s ease-in-out; }
+
+        /* 2. 체력바 색상 변동 (우선순위 강화를 위해 .hp-bar를 앞에 붙임) */
+        .hp-bar .hp-safe { background-color: #2ecc71 !important; background: #2ecc71 !important; }    /* 녹색 */
+        .hp-bar .hp-warning { background-color: #f1c40f !important; background: #f1c40f !important; } /* 황색 */
+        .hp-bar .hp-danger { background-color: #e74c3c !important; background: #e74c3c !important; }  /* 적색 */
         
-        /* 2. 체력바 색상 변동 (기본값 설정) */
-        .hp-bar-fill { transition: width 0.3s ease, background-color 0.3s ease; }
-        .hp-safe { background-color: #2ecc71 !important; }    /* 녹색 */
-        .hp-warning { background-color: #f1c40f !important; } /* 황색 */
-        .hp-danger { background-color: #e74c3c !important; }  /* 적색 */
+        /* 체력바 부드럽게 움직이게 설정 */
+        .hp-bar-fill { 
+            transition: width 0.4s ease, background-color 0.4s ease !important; 
+        }
         
         /* 3. 상태이상(행동불능 등) 시각 효과 */
         .card-disabled { filter: grayscale(0.8) brightness(0.7); pointer-events: none; }
@@ -311,24 +315,49 @@
         const card = document.getElementById(`unitCard_${id}`);
         const name = card.querySelector('.name-input').value;
         const badges = card.querySelectorAll('.status-badge');
+    
         badges.forEach(badge => {
             const stInput = badge.querySelector('.st-stack');
             const type = stInput.dataset.stat, power = parseFloat(stInput.dataset.power), stacks = parseInt(stInput.value);
             let remain = parseInt(stInput.dataset.remain);
+            const sName = badge.querySelector('span').textContent.split('(')[0]; // 상태이상 이름 추출
+    
+            // 1. 지속 피해(dot) / 지속 회복(hot) 계산
             if(type === 'dot' || type === 'hot') {
                 const maxHp = parseFloat(card.querySelector('.max').value), currentHp = parseFloat(card.querySelector('.hp').value);
-                const effectVal = (maxHp * (power / 100)) * stacks;
-                if(type === 'dot') { card.querySelector('.hp').value = Math.max(0, currentHp - effectVal).toFixed(1); log(`🩸 ${name}: 지속 피해 <b>${effectVal.toFixed(1)}</b>`, 'log-atk'); }
-                else { card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal).toFixed(1); log(`🌿 ${name}: 지속 회복 <b>${effectVal.toFixed(1)}</b>`, 'log-heal'); }
+                // 자연수 처리를 위해 Math.round 적용
+                const effectVal = Math.round((maxHp * (power / 100)) * stacks);
+                
+                if(type === 'dot') { 
+                    card.querySelector('.hp').value = Math.max(0, currentHp - effectVal); 
+                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해!`, 'log-atk'); 
+                } else { 
+                    card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal); 
+                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복!`, 'log-heal'); 
+                }
                 updateHP(id, false);
             }
+    
+            // 2. 턴 감소 및 만료 처리
             if (remain > 0) {
                 remain--;
-                if (remain === 0) { log(`⏳ ${name}: [${badge.querySelector('span').textContent.split('(')[0]}] 효과 종료`); badge.remove(); }
-                else { stInput.dataset.remain = remain; badge.querySelector('span').textContent = `${badge.querySelector('span').textContent.split('(')[0]}(${remain}T)`; }
+                if (remain === 0) { 
+                    log(`⏳ ${name}: [${sName}] 효과 종료`); 
+                    badge.remove(); 
+                } else { 
+                    stInput.dataset.remain = remain; 
+                    badge.querySelector('span').textContent = `${sName}(${remain}T)`; 
+                }
             }
         });
-        card.classList.add('turn-ended'); card.classList.remove('active-turn'); processNextTurn(); broadcastData();
+    
+        // 3. [추가] 상태이상 시각 효과(테두리/어둡기) 최종 갱신
+        refreshStatusEffects(card);
+    
+        card.classList.add('turn-ended'); 
+        card.classList.remove('active-turn'); 
+        processNextTurn(); 
+        broadcastData();
     }
 
     // [행동금지 스킵 로직 - 원본 유지]
@@ -464,7 +493,38 @@
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
     function processEndPhase() { log(`━━━━ ROUND ${round} 결산 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
-    function updateHP(id, b = true) { const c = document.getElementById(`unitCard_${id}`); if(!c) return; const hp = parseFloat(c.querySelector('.hp').value), max = parseFloat(c.querySelector('.max').value); const p = Math.max(0, Math.min(100, (hp/max)*100)); document.getElementById(`hpBadge_${id}`).textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`; document.getElementById(`hpBar_${id}`).style.width = p+"%"; if(hp <= 0) c.classList.add('is-ko'); else c.classList.remove('is-ko'); if(b) broadcastData(); }
+
+    function updateHP(id, b = true) {
+        const c = document.getElementById(`unitCard_${id}`); // 마스터님 기존 ID 형식 유지
+        if(!c) return;
+        
+        const hpInput = c.querySelector('.hp');
+        const maxInput = c.querySelector('.max');
+        const hp = parseFloat(hpInput.value) || 0;
+        const max = parseFloat(maxInput.value) || 1;
+        const p = Math.max(0, Math.min(100, (hp / max) * 100));
+    
+        // 1. 기존 레이아웃 업데이트 (뱃지 및 바 길이)
+        const badge = document.getElementById(`hpBadge_${id}`);
+        const bar = document.getElementById(`hpBar_${id}`);
+        if(badge) badge.textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`;
+        if(bar) {
+            bar.style.width = p + "%";
+            
+            // 2. [추가] 체력 비율에 따른 색상 변경
+            bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
+            if (p > 70) bar.classList.add('hp-safe');
+            else if (p > 30) bar.classList.add('hp-warning');
+            else bar.classList.add('hp-danger');
+        }
+    
+        // 3. 사망 처리 클래스 (기존 유지)
+        if(hp <= 0) c.classList.add('is-ko');
+        else c.classList.remove('is-ko');
+    
+        if(b) broadcastData();
+    }
+    
     function toggleCard(id, f) { const b = document.getElementById(`cardBody_${id}`), a = document.getElementById(`arrow_${id}`); if(!b) return; const ex = f !== undefined ? f : !b.classList.contains('expanded'); if(ex) { b.classList.add('expanded'); a.style.transform="rotate(180deg)"; } else { b.classList.remove('expanded'); a.style.transform="rotate(0deg)"; } }
     function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
     function closeAllModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); document.getElementById('overlay').style.display = 'none'; }
@@ -507,7 +567,36 @@
     function renderTags(m) { const area = document.getElementById(m + 'TarTags'); area.innerHTML = selections[m + 'Tar'].map(n => `<span class="target-tag">${n}<b onclick="removeTag('${m}', '${n}')">×</b></span>`).join(""); }
     function removeTag(m, n) { selections[m + 'Tar'] = selections[m + 'Tar'].filter(x => x !== n); renderTags(m); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map(s => `<div onclick="addStatusToUnit(${id}, '${s.name}', '${s.stat}', ${s.power}, ${s.turn})">${s.name}</div>`).join(""); m.style.display = 'block'; }
-    function addStatusToUnit(id, name, stat, power, turn) { const c = document.getElementById(`unitActiveStatus_${id}`); const div = document.createElement('div'); div.className = 'status-badge'; div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span><div><input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; c.appendChild(div); closeMenus(); broadcastData(); }
+
+    function addStatusToUnit(id, name, stat, power, turn) {
+    const c = document.getElementById(`unitActiveStatus_${id}`);
+    const card = document.getElementById(`char_${id}`); // 시각 효과를 위해 카드 찾기
+    const div = document.createElement('div');
+    div.className = 'status-badge';
+    
+    // 1. 배지 생성 (기존 유지)
+    div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span>
+        <div>
+            <input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> 
+            <b onclick="if(isMaster){this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('char_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
+        </div>`;
+    
+    c.appendChild(div);
+
+    // 2. [추가] 상태이상 부여 알림 로그
+    const unitName = card.querySelector('.name').value;
+    const turnText = turn == 0 ? "영구" : `${turn}턴`;
+    log(`⚠️ ${unitName}: [${name}] 효과 부여! (${turnText})`, 'log-dice');
+
+    // 3. [추가] 3번 시각 효과 갱신
+    if(typeof refreshStatusEffects === 'function') {
+        refreshStatusEffects(card);
+    }
+
+    closeMenus();
+    broadcastData();
+    }
+    
     function rollDice() { const formula = document.getElementById('diceType').value || "1d100", success = parseInt(document.getElementById('diceSuccess').value); const parts = formula.toLowerCase().split('d'); let total = 0; if(parts.length === 2) { const count = parseInt(parts[0]) || 1, sides = parseInt(parts[1]) || 100; for(let i=0; i<count; i++) total += Math.floor(Math.random() * sides) + 1; } let msg = `🎲 다이스: <b>${total}</b> (${formula})`; if(!isNaN(success)) msg += total <= success ? ` <span style="color:blue;">[성공]</span>` : ` <span style="color:red;">[실패]</span>`; log(msg, 'log-dice'); }
     function addNewStatusType() { const n = document.getElementById('msName').value, s = document.getElementById('msStat').value, p = document.getElementById('msPower').value, t = document.getElementById('msTurn').value; if(!n || !p || t==="") return; statusTypes.push({ name:n, stat:s, power:p, turn: parseInt(t) }); renderStatusTypeList(); broadcastData(); }
     function renderStatusTypeList() { const list = document.getElementById('statusTypeList'); if(!list) return; list.innerHTML = statusTypes.map((s, idx) => `<div style="padding:6px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;"><span><b>${s.name}</b> (${getStatLabel(s.stat)} ${s.power}${s.stat==='skip'?'':'%'})</span><button onclick="statusTypes.splice(${idx},1); renderStatusTypeList(); broadcastData();" style="color:red; background:none;">×</button></div>`).join(""); }
