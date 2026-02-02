@@ -400,7 +400,9 @@
         });
         return base * (1 + mod / 100);
     }
-    function findCardByName(n) { return Array.from(document.querySelectorAll('.name-input')).find(c => c.querySelector('.name-input').value === n); }
+    function findCardByName(n) { 
+    return Array.from(document.querySelectorAll('.char-card')).find(c => c.querySelector('.name-input').value === n);  
+    }
     
     function refreshDropdowns() {
         const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim());
