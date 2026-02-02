@@ -452,27 +452,43 @@
         broadcastData();
     }
 
-    // 체력바
-    function updateHP(id) {
-        const card = document.getElementById(`char_${id}`);
-        if(!card) return;
+    function updateHP(id, b = true) {
+        // 1. 유닛 카드를 찾습니다 (두 가지 ID 형식을 모두 체크하도록 설계)
+        const c = document.getElementById(`unitCard_${id}`) || document.getElementById(`char_${id}`);
+        if(!c) return;
         
-        const hpInput = card.querySelector('.hp');
-        const maxInput = card.querySelector('.max');
-        const bar = card.querySelector('.hp-bar-fill');
-        
+        const hpInput = c.querySelector('.hp');
+        const maxInput = c.querySelector('.max');
+        if(!hpInput || !maxInput) return;
+    
         const hp = parseFloat(hpInput.value) || 0;
         const max = parseFloat(maxInput.value) || 1;
-        const percent = Math.min(100, Math.max(0, (hp / max) * 100));
+        const p = Math.max(0, Math.min(100, (hp / max) * 100));
     
-        // 체력 바 길이 조정
-        bar.style.width = percent + "%";
+        // 2. 뱃지(텍스트 표시) 업데이트
+        const badge = document.getElementById(`hpBadge_${id}`);
+        if(badge) badge.textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`;
     
-        // 2번 기능: 체력 비율에 따른 색상 변경
-        bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
-        if (percent > 70) bar.classList.add('hp-safe');
-        else if (percent > 30) bar.classList.add('hp-warning');
-        else bar.classList.add('hp-danger');
+        // 3. 체력바 길이 및 색상 업데이트
+        // 바의 ID(hpBar_)와 클래스(.hp-bar-fill 또는 .hp-bar-inner)를 둘 다 체크
+        const bar = document.getElementById(`hpBar_${id}`) || c.querySelector('.hp-bar-fill') || c.querySelector('.hp-bar-inner');
+        
+        if(bar) {
+            bar.style.width = p + "%";
+            
+            // 색상 클래스 초기화 후 재설정
+            bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
+            if (p > 70) bar.classList.add('hp-safe');
+            else if (p > 30) bar.classList.add('hp-warning');
+            else bar.classList.add('hp-danger');
+        }
+    
+        // 4. 사망 처리 (is-ko 클래스)
+        if(hp <= 0) c.classList.add('is-ko');
+        else c.classList.remove('is-ko');
+    
+        // 5. 실시간 데이터 공유
+        if(b) broadcastData();
     }
     
     // [신규 스킬 메모 기능 로직]
@@ -505,38 +521,6 @@
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
     function processEndPhase() { log(`━━━━ ROUND ${round} 결산 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
-
-    function updateHP(id, b = true) {
-        const c = document.getElementById(`unitCard_${id}`); // 마스터님 기존 ID 형식 유지
-        if(!c) return;
-        
-        const hpInput = c.querySelector('.hp');
-        const maxInput = c.querySelector('.max');
-        const hp = parseFloat(hpInput.value) || 0;
-        const max = parseFloat(maxInput.value) || 1;
-        const p = Math.max(0, Math.min(100, (hp / max) * 100));
-    
-        // 1. 기존 레이아웃 업데이트 (뱃지 및 바 길이)
-        const badge = document.getElementById(`hpBadge_${id}`);
-        const bar = document.getElementById(`hpBar_${id}`);
-        if(badge) badge.textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`;
-        if(bar) {
-            bar.style.width = p + "%";
-            
-            // 2. [추가] 체력 비율에 따른 색상 변경
-            bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
-            if (p > 70) bar.classList.add('hp-safe');
-            else if (p > 30) bar.classList.add('hp-warning');
-            else bar.classList.add('hp-danger');
-        }
-    
-        // 3. 사망 처리 클래스 (기존 유지)
-        if(hp <= 0) c.classList.add('is-ko');
-        else c.classList.remove('is-ko');
-    
-        if(b) broadcastData();
-    }
-    
     function toggleCard(id, f) { const b = document.getElementById(`cardBody_${id}`), a = document.getElementById(`arrow_${id}`); if(!b) return; const ex = f !== undefined ? f : !b.classList.contains('expanded'); if(ex) { b.classList.add('expanded'); a.style.transform="rotate(180deg)"; } else { b.classList.remove('expanded'); a.style.transform="rotate(0deg)"; } }
     function toggleModal(id, sh) { document.getElementById(id).style.display = sh ? 'block' : 'none'; document.getElementById('overlay').style.display = sh ? 'block' : 'none'; }
     function closeAllModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); document.getElementById('overlay').style.display = 'none'; }
