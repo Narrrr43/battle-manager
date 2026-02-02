@@ -56,6 +56,16 @@
         /* 스킬 메모 전용 스타일 */
         .skill-group { margin-bottom: 10px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
         .skill-group-header { background: #f8f9fa; padding: 6px 10px; font-size: 12px; font-weight: 800; border-bottom: 1px solid #eee; color: var(--skill-accent); }
+    
+        @keyframes logShake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            50% { transform: translateX(5px) rotate(1deg); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        .shake-log { animation: logShake 0.3s ease-in-out; border-left: 5px solid #ff4757 !important; background: #fff5f5; }
+        
     </style>
 </head>
 <body onclick="closeMenus()" class="is-viewer">
@@ -340,7 +350,10 @@
                 d *= (0.9 + Math.random() * 0.2);
                 const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d);
                 tC.querySelector('.hp').value = nextHp.toFixed(1);
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, 'log-atk');
+                
+                // 마스터님 원본 로그 문구 유지 + 크리티컬 시 shake-log 클래스 추가
+                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                
                 if(nextHp <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 updateHP(tId);
             } else {
