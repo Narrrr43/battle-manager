@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Ultimate Battle Manager v6.99</title>
+    <title>Ultimate Battle Manager v7.01</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; }
+        :root { --bg-color: #f0f2f5; --side-bg: #ffffff; --player-accent: #4361ee; --enemy-accent: #e63946; --heal-accent: #2a9d8f; --dice-accent: #8e44ad; --turn-active: #00d2ff; --text-main: #2d3436; --border: #dfe6e9; --skill-accent: #6c5ce7; }
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Pretendard', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
@@ -52,6 +52,12 @@
         #masterBadge { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2000; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .admin-only { background: var(--turn-active); color: #000; }
         .viewer-only { background: #636e72; color: #fff; }
+
+        /* 스킬 메모 전용 스타일 */
+        .skill-item { background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 8px; border-left: 4px solid var(--skill-accent); position: relative; }
+        .skill-item b { display: block; color: var(--skill-accent); font-size: 13px; margin-bottom: 4px; }
+        .skill-item p { margin: 0; font-size: 11px; color: #636e72; white-space: pre-wrap; }
+        .skill-del-btn { position: absolute; top: 5px; right: 8px; color: #fab1a0; cursor: pointer; font-size: 14px; }
     </style>
 </head>
 <body onclick="closeMenus()" class="is-viewer">
@@ -74,6 +80,40 @@
     </div>
     <div id="statusTypeList" style="margin-top:12px; max-height:150px; overflow-y:auto; border-top:1px solid #eee;"></div>
     <button onclick="toggleModal('statusManagerMenu', false)" style="width:100%; margin-top:8px; padding:8px; background:#eee; font-size:11px;">닫기</button>
+</div>
+
+<div id="itemManagerMenu" class="modal">
+    <h4 style="margin:0 0 10px 0;">💊 아이템 등록</h4>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+        <input type="text" id="itemName" placeholder="아이템 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+        <input type="number" id="itemPower" placeholder="회복량" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+        <button onclick="addNewItemType()" style="background:var(--heal-accent); color:white; padding:10px; font-size:12px;">등록</button>
+    </div>
+    <div id="itemTypeList" style="margin-top:12px; max-height:100px; overflow-y:auto; border-top:1px solid #eee;"></div>
+    <button onclick="toggleModal('itemManagerMenu', false)" style="width:100%; margin-top:8px; padding:8px; background:#eee; font-size:11px;">닫기</button>
+</div>
+
+<div id="useItemPopup" class="modal">
+    <h4 style="margin:0 0 10px 0;">👜 아이템 사용</h4>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="custom-select" onclick="openSelect(event, 'itemSelList')" id="itemSelBtn">아이템 선택</div>
+        <div id="itemSelList" class="dropdown-menu"></div>
+        <div class="custom-select" onclick="openSelect(event, 'itemUserList')" id="itemUserBtn">대상자</div>
+        <div id="itemUserList" class="dropdown-menu"></div>
+        <button onclick="useItemNow()" style="background:var(--heal-accent); color:white; padding:12px; font-size:13px;">즉시 사용</button>
+    </div>
+    <button onclick="toggleModal('useItemPopup', false)" style="width:100%; margin-top:12px; padding:8px; background:#eee; font-size:11px;">취소</button>
+</div>
+
+<div id="skillMemoMenu" class="modal">
+    <h4 style="margin:0 0 10px 0;">📜 스킬 & 효과 메모</h4>
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+        <input type="text" id="skName" placeholder="스킬/효과 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+        <textarea id="skDesc" placeholder="상세 효과 설명" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px; height:60px; resize:none;"></textarea>
+        <button onclick="addNewSkill()" style="background:var(--skill-accent); color:white; padding:10px; font-size:12px;">메모 추가</button>
+    </div>
+    <div id="skillListArea" style="max-height:250px; overflow-y:auto; border-top:1px solid #eee; padding-top:10px;"></div>
+    <button onclick="toggleModal('skillMemoMenu', false)" style="width:100%; margin-top:12px; padding:8px; background:#eee; font-size:11px;">닫기</button>
 </div>
 
 <div class="side-panel">
@@ -130,6 +170,7 @@
         <button onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
         <button onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
         <button onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 전체 리셋</button>
+        <button onclick="toggleModal('skillMemoMenu', true)" style="background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
         <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
     </div>
 
@@ -144,79 +185,70 @@
     <div id="enemyList" class="char-scroll-area"></div>
 </div>
 
-<div id="itemManagerMenu" class="modal">
-    <h4 style="margin:0 0 10px 0;">💊 아이템 등록</h4>
-    <div style="display:flex; flex-direction:column; gap:6px;">
-        <input type="text" id="itemName" placeholder="아이템 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-        <input type="number" id="itemPower" placeholder="회복량" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-        <button onclick="addNewItemType()" style="background:var(--heal-accent); color:white; padding:10px; font-size:12px;">등록</button>
-    </div>
-    <div id="itemTypeList" style="margin-top:12px; max-height:100px; overflow-y:auto; border-top:1px solid #eee;"></div>
-    <button onclick="toggleModal('itemManagerMenu', false)" style="width:100%; margin-top:8px; padding:8px; background:#eee; font-size:11px;">닫기</button>
-</div>
-
-<div id="useItemPopup" class="modal">
-    <h4 style="margin:0 0 10px 0;">👜 아이템 사용</h4>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="custom-select" onclick="openSelect(event, 'itemSelList')" id="itemSelBtn">아이템 선택</div>
-        <div id="itemSelList" class="dropdown-menu"></div>
-        <div class="custom-select" onclick="openSelect(event, 'itemUserList')" id="itemUserBtn">대상자</div>
-        <div id="itemUserList" class="dropdown-menu"></div>
-        <button onclick="useItemNow()" style="background:var(--heal-accent); color:white; padding:12px; font-size:13px;">즉시 사용</button>
-    </div>
-    <button onclick="toggleModal('useItemPopup', false)" style="width:100%; margin-top:12px; padding:8px; background:#eee; font-size:11px;">취소</button>
-</div>
-
 <script>
     const socket = io();
     const MASTER_PW = "qazplm10110925";
-    let isMaster = false; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = [];
+    let isMaster = false; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
     let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "" };
     let turnList = []; let currentTurnPointer = -1;
 
     function askMasterPassword() { const pw = prompt("비밀번호:"); if (pw === MASTER_PW) { isMaster = true; document.body.classList.remove('is-viewer'); document.getElementById('masterBadge').textContent = "👑 마스터 권한 활성화"; document.getElementById('masterBadge').className = "admin-only"; alert("인증 성공!"); } }
     
-    // [캐릭터 내부 추가피해 전용 실행 함수]
+    // [추가피해 기능 유지]
     function executeExtraDamage(id) {
         if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const input = card.querySelector('.extra-dmg-input');
         const percent = parseFloat(input.value);
-        
         if(isNaN(percent) || selections.atkTar.length === 0) return alert("피해 % 입력 및 공격 대상을 선택해주세요!");
-
         const srcName = card.querySelector('.name-input').value;
         const baseAtk = getModifiedStat(card, 'atk');
         const finalDmg = baseAtk * (percent / 100);
-
         selections.atkTar.forEach(tarName => {
             const tC = findCardByName(tarName); if(!tC) return;
-            const tId = tC.id.split('_')[1];
-            
-            // 상대방 회피 체크
             const tEva = getModifiedStat(tC, 'eva');
             const evaRoll = Math.floor(Math.random() * 100) + 1;
-
             if(evaRoll <= tEva) {
                 log(`🛡️ ${tarName} 회피! (추가피해 무효) [Eva:${evaRoll}/${tEva}]`, 'log-dice');
             } else {
                 const curHp = parseFloat(tC.querySelector('.hp').value);
                 tC.querySelector('.hp').value = Math.max(0, curHp - finalDmg).toFixed(1);
                 log(`💥 ${srcName} → ${tarName}: <b>${finalDmg.toFixed(1)}</b> 추가 피해 (공격력 ${percent}%)`, 'log-atk');
-                updateHP(tId);
-                if(parseFloat(tC.querySelector('.hp').value) <= 0) log(`💀 ${tarName} 사망!`, 'log-round-box');
+                updateHP(tC.id.split('_')[1]);
             }
         });
         broadcastData();
     }
 
-    // [캐릭터 카드 생성 함수 - 추가피해 입력란 복구]
+    // [스킬 메모 기능 로직]
+    function addNewSkill() {
+        if(!isMaster) return;
+        const name = document.getElementById('skName').value;
+        const desc = document.getElementById('skDesc').value;
+        if(!name || !desc) return alert("이름과 설명을 입력해주세요.");
+        skillData.push({ name, desc });
+        document.getElementById('skName').value = '';
+        document.getElementById('skDesc').value = '';
+        renderSkillList();
+        broadcastData();
+    }
+    function renderSkillList() {
+        const area = document.getElementById('skillListArea');
+        area.innerHTML = skillData.map((s, idx) => `<div class="skill-item"><span class="skill-del-btn" onclick="removeSkill(${idx})">×</span><b>${s.name}</b><p>${s.desc}</p></div>`).join('');
+    }
+    function removeSkill(idx) {
+        if(!isMaster) return;
+        skillData.splice(idx, 1);
+        renderSkillList();
+        broadcastData();
+    }
+
+    // [시스템 유지 및 복구]
     function createUnit(t, s = null) {
         unitIdx++; const id = unitIdx; const c = document.getElementById(t === 'player' ? 'playerList' : 'enemyList');
         const div = document.createElement('div'); div.className = 'char-card'; div.id = `unitCard_${id}`;
         if(s?.isKO) div.classList.add('is-ko'); if(s?.isActive) div.classList.add('active-turn'); if(s?.isEnded) div.classList.add('turn-ended');
         const ro = isMaster ? "" : "readonly";
-        
         div.innerHTML = `
             <div class="ko-badge">전투 불능</div>
             <div class="card-header" onclick="toggleCard(${id})">
@@ -225,31 +257,22 @@
                         <input type="text" class="init-input" value="${s?.init || '1'}" onchange="broadcastData()" onclick="event.stopPropagation()" ${ro}>
                         <input type="text" class="name-input" value="${s?.name || (t==='player'?'P':'E')+'-'+id}" onclick="event.stopPropagation()" onchange="refreshDropdowns(); broadcastData();" style="border:none; font-weight:800; width:65px; background:transparent; font-size:12px;" ${ro}>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span id="hpBadge_${id}" style="font-size:10px; font-weight:bold;">100/100</span>
-                        <span id="arrow_${id}" class="arrow-icon">▼</span>
-                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;"><span id="hpBadge_${id}" style="font-size:10px; font-weight:bold;">100/100</span><span id="arrow_${id}" class="arrow-icon">▼</span></div>
                 </div>
                 <div class="hp-bar-outer"><div class="hp-bar-inner" id="hpBar_${id}" style="background:var(--heal-accent)"></div></div>
             </div>
             <div class="card-body" id="cardBody_${id}">
                 <div class="stat-grid">${['atk','int','hit','eva','critR','critD','sp','healEff','hp','max'].map(st => `<div class="stat-item"><label>${getStatLabel(st)}</label><input type="number" class="${st}" value="${s ? s.stats[st] : getDefaultValue(st)}" oninput="updateHP(${id})" ${ro}></div>`).join('')}</div>
-                
                 <div class="admin-control" style="margin-top:10px; padding:8px; background:#fff5f5; border-radius:8px; border:1px solid #ffe3e3; display:flex; gap:5px; align-items:center;">
                     <input type="number" class="extra-dmg-input" placeholder="%" style="flex:1; padding:5px; font-size:11px; border:1px solid #ddd; border-radius:4px;">
                     <button onclick="executeExtraDamage(${id})" style="flex:1.5; background:var(--enemy-accent); color:white; padding:5px; font-size:11px; border-radius:4px;">추가피해</button>
                 </div>
-
-                <div style="margin-top:10px; display:flex; gap:5px;">
-                    <button class="admin-control" onclick="finishCurrentTurn(${id})" style="flex:1.2; background:var(--turn-active); color:#2d3436; padding:8px; font-size:11px;">행동 완료</button>
-                </div>
+                <div style="margin-top:10px; display:flex; gap:5px;"><button class="admin-control" onclick="finishCurrentTurn(${id})" style="flex:1.2; background:var(--turn-active); color:#2d3436; padding:8px; font-size:11px;">행동 완료</button></div>
                 <div style="margin-top:8px; border-top:1px dashed #eee; padding-top:6px;">
                     <button class="admin-control" onclick="openUnitStatusSelect(event, ${id})" style="width:100%; font-size:10px; padding:3px; background:#f8f9fa; border:1px solid #ddd;">+ 상태이상 부여</button>
-                    <div id="unitActiveStatus_${id}" style="margin-top:4px;"></div>
-                    <div id="unitStatusMenu_${id}" class="dropdown-menu"></div>
+                    <div id="unitActiveStatus_${id}" style="margin-top:4px;"></div><div id="unitStatusMenu_${id}" class="dropdown-menu"></div>
                 </div>
             </div>`;
-        
         c.appendChild(div);
         if(s?.activeStatus) {
             const stC = div.querySelector(`#unitActiveStatus_${id}`);
@@ -262,66 +285,47 @@
         updateHP(id, false); refreshDropdowns();
     }
 
-    // [상태이상 결산 로직 - 0턴 유지 지침 반영]
     function finishCurrentTurn(id) {
         if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const name = card.querySelector('.name-input').value;
         const badges = card.querySelectorAll('.status-badge');
-        
         badges.forEach(badge => {
             const stInput = badge.querySelector('.st-stack');
             const type = stInput.dataset.stat, power = parseFloat(stInput.dataset.power), stacks = parseInt(stInput.value);
             let remain = parseInt(stInput.dataset.remain);
-            
             if(type === 'dot' || type === 'hot') {
-                const maxHp = parseFloat(card.querySelector('.max').value), currentHp = parseFloat(card.querySelector('.hp').value);
-                const effectVal = (maxHp * (power / 100)) * stacks;
-                if(type === 'dot') { card.querySelector('.hp').value = Math.max(0, currentHp - effectVal).toFixed(1); log(`🩸 ${name}: 지속 피해 <b>${effectVal.toFixed(1)}</b>`, 'log-atk'); }
-                else { card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal).toFixed(1); log(`🌿 ${name}: 지속 회복 <b>${effectVal.toFixed(1)}</b>`, 'log-heal'); }
+                const maxHp = parseFloat(card.querySelector('.max').value), curHp = parseFloat(card.querySelector('.hp').value);
+                const val = (maxHp * (power / 100)) * stacks;
+                if(type === 'dot') { card.querySelector('.hp').value = Math.max(0, curHp - val).toFixed(1); log(`🩸 ${name}: 지속 피해 <b>${val.toFixed(1)}</b>`, 'log-atk'); }
+                else { card.querySelector('.hp').value = Math.min(maxHp, curHp + val).toFixed(1); log(`🌿 ${name}: 지속 회복 <b>${val.toFixed(1)}</b>`, 'log-heal'); }
                 updateHP(id, false);
             }
-            
-            if (remain > 0) { // remain이 0인 것은 영구 상태이상이므로 차감하지 않음
+            if (remain > 0) {
                 remain--;
                 if (remain === 0) { log(`⏳ ${name}: [${badge.querySelector('span').textContent.split('(')[0]}] 효과 종료`); badge.remove(); }
                 else { stInput.dataset.remain = remain; badge.querySelector('span').textContent = `${badge.querySelector('span').textContent.split('(')[0]}(${remain}T)`; }
             }
         });
-
         card.classList.add('turn-ended'); card.classList.remove('active-turn'); processNextTurn(); broadcastData();
     }
 
-    // [행동금지 스킵 로직]
     function processNextTurn() {
         if(currentTurnPointer < 0 || currentTurnPointer >= turnList.length) return;
         document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active-turn'));
         const next = turnList[currentTurnPointer];
         const card = document.getElementById(`unitCard_${next.id}`);
-        
         if(card) {
             if(card.classList.contains('is-ko')) { currentTurnPointer++; processNextTurn(); return; }
-            let isSkipped = false;
-            card.querySelectorAll('.status-badge').forEach(badge => {
-                if(badge.querySelector('.st-stack').dataset.stat === 'skip') isSkipped = true;
-            });
-
-            if(isSkipped) {
-                log(`⛔ ${card.querySelector('.name-input').value}: 행동 불능! 턴을 결산하고 넘깁니다.`, 'log-dice');
-                card.classList.add('active-turn');
-                setTimeout(() => { finishCurrentTurn(next.id); }, 500);
-            } else {
-                card.classList.add('active-turn'); toggleCard(next.id, true); currentTurnPointer++;
-            }
+            let skip = false; card.querySelectorAll('.status-badge').forEach(b => { if(b.querySelector('.st-stack').dataset.stat === 'skip') skip = true; });
+            if(skip) { log(`⛔ ${card.querySelector('.name-input').value}: 행동 불능!`, 'log-dice'); card.classList.add('active-turn'); setTimeout(() => { finishCurrentTurn(next.id); }, 500); }
+            else { card.classList.add('active-turn'); toggleCard(next.id, true); currentTurnPointer++; }
         } else { currentTurnPointer++; processNextTurn(); }
     }
 
-    // [기존 메인 로직 유지]
     function executeAction(m) {
-        const src = m === 'attack' ? selections.atkSrc : selections.healSrc;
-        const tars = m === 'attack' ? selections.atkTar : selections.healTar;
+        const src = m === 'attack' ? selections.atkSrc : selections.healSrc, tars = m === 'attack' ? selections.atkTar : selections.healTar;
         const sC = findCardByName(src); if(!sC || tars.length === 0) return alert("대상 확인!");
-
         tars.forEach(n => {
             const tC = findCardByName(n); if(!tC) return;
             const tId = tC.id.split('_')[1];
@@ -335,25 +339,22 @@
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
                 let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
                 const critRoll = Math.floor(Math.random() * 100) + 1;
-                let isCrit = false; if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
+                let crit = false; if(critRoll <= sCritR) { d *= sCritD; crit = true; }
                 d *= (0.9 + Math.random() * 0.2);
-                const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d);
-                tC.querySelector('.hp').value = nextHp.toFixed(1);
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, 'log-atk');
-                if(nextHp <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
+                tC.querySelector('.hp').value = Math.max(0, parseFloat(tC.querySelector('.hp').value) - d).toFixed(1);
+                log(`${crit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${d.toFixed(1)}</b> 피해`, 'log-atk');
+                if(parseFloat(tC.querySelector('.hp').value) <= 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 updateHP(tId);
             } else {
-                const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
-                let h = (((maxHp * 0.33) / 80 * eff) + (intel * 0.2));
-                h *= (0.95 + Math.random() * 0.1);
-                tC.querySelector('.hp').value = Math.min(maxHp, parseFloat(tC.querySelector('.hp').value) + h).toFixed(1);
+                const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), max = parseFloat(tC.querySelector('.max').value);
+                let h = (((max * 0.33) / 80 * eff) + (intel * 0.2)) * (0.95 + Math.random() * 0.1);
+                tC.querySelector('.hp').value = Math.min(max, parseFloat(tC.querySelector('.hp').value) + h).toFixed(1);
                 updateHP(tId); log(`✨ ${src} → ${n}: <b>${h.toFixed(1)}</b> 회복`, 'log-heal');
             }
         });
         broadcastData();
     }
 
-    // [필수 UI 함수들]
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
     function processEndPhase() { log(`━━━━ ROUND ${round} 결산 ━━━━`, 'log-round-box'); document.querySelectorAll('.char-card').forEach(card => card.classList.remove('turn-ended', 'active-turn')); round++; document.getElementById('roundNum').textContent = round; currentTurnPointer = -1; broadcastData(); }
@@ -364,21 +365,11 @@
     function openSelect(e, id) { e.stopPropagation(); closeMenus(); document.getElementById(id).style.display='block'; refreshDropdowns(); }
     function getStatLabel(s) { return {atk:'공격',int:'지능',hit:'명중',eva:'회피',critR:'치확',critD:'치뎀',sp:'영력',healEff:'치료',hp:'HP',max:'MAX'}[s] || s; }
     function getDefaultValue(s) { return {hit:100,critD:150,hp:100,max:100,atk:10,int:10,eva:0,critR:5,sp:10,healEff:100}[s] || 0; }
-    function getModifiedStat(card, type) {
-        let base = parseFloat(card.querySelector('.' + type).value), mod = 0;
-        card.querySelectorAll('.status-badge').forEach(badge => {
-            const stInput = badge.querySelector('.st-stack');
-            if(stInput.dataset.stat === type) mod += (parseFloat(stInput.dataset.power) * parseInt(stInput.value));
-        });
-        return base * (1 + mod / 100);
-    }
+    function getModifiedStat(card, type) { let base = parseFloat(card.querySelector('.' + type).value), mod = 0; card.querySelectorAll('.status-badge').forEach(badge => { const st = badge.querySelector('.st-stack'); if(st.dataset.stat === type) mod += (parseFloat(st.dataset.power) * parseInt(st.value)); }); return base * (1 + mod / 100); }
     function findCardByName(n) { return Array.from(document.querySelectorAll('.char-card')).find(c => c.querySelector('.name-input').value === n); }
     function refreshDropdowns() {
         const names = Array.from(document.querySelectorAll('.name-input')).map(i => i.value.trim());
-        ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList'].forEach(id => {
-            const list = document.getElementById(id); if(!list) return;
-            list.innerHTML = names.map(n => `<div onclick="selectTarget('${id}', '${n}')">${n}</div>`).join("");
-        });
+        ['atkSrcList', 'atkTarList', 'healSrcList', 'healTarList', 'itemUserList'].forEach(id => { const list = document.getElementById(id); if(list) list.innerHTML = names.map(n => `<div onclick="selectTarget('${id}', '${n}')">${n}</div>`).join(""); });
         if(document.getElementById('itemSelList')) document.getElementById('itemSelList').innerHTML = itemTypes.map(it => `<div onclick="selectTarget('itemSelList', '${it.name}')">${it.name}</div>`).join("");
     }
     function selectTarget(listId, name) {
@@ -390,10 +381,7 @@
         else if(listId === 'itemUserList') { selections.itemUser = name; document.getElementById('itemUserBtn').textContent = name; }
         closeMenus();
     }
-    function renderTags(m) {
-        const area = document.getElementById(m + 'TarTags');
-        area.innerHTML = selections[m + 'Tar'].map(n => `<span class="target-tag">${n}<b onclick="removeTag('${m}', '${n}')">×</b></span>`).join("");
-    }
+    function renderTags(m) { const area = document.getElementById(m + 'TarTags'); area.innerHTML = selections[m + 'Tar'].map(n => `<span class="target-tag">${n}<b onclick="removeTag('${m}', '${n}')">×</b></span>`).join(""); }
     function removeTag(m, n) { selections[m + 'Tar'] = selections[m + 'Tar'].filter(x => x !== n); renderTags(m); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map(s => `<div onclick="addStatusToUnit(${id}, '${s.name}', '${s.stat}', ${s.power}, ${s.turn})">${s.name}</div>`).join(""); m.style.display = 'block'; }
     function addStatusToUnit(id, name, stat, power, turn) { const c = document.getElementById(`unitActiveStatus_${id}`); const div = document.createElement('div'); div.className = 'status-badge'; div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span><div><input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`; c.appendChild(div); closeMenus(); broadcastData(); }
@@ -403,18 +391,43 @@
     function addNewItemType() { const n = document.getElementById('itemName').value, p = document.getElementById('itemPower').value; if(!n || !p) return; itemTypes.push({ name:n, power:p }); renderItemTypeList(); refreshDropdowns(); broadcastData(); }
     function renderItemTypeList() { const list = document.getElementById('itemTypeList'); if(!list) return; list.innerHTML = itemTypes.map((it, idx) => `<div style="padding:4px; font-size:11px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${it.name} (+${it.power}) <button onclick="itemTypes.splice(${idx},1); renderItemTypeList(); broadcastData();">×</button></div>`).join(""); }
     function useItemNow() { const item = itemTypes.find(it => it.name === selections.itemSel), card = findCardByName(selections.itemUser); if(!item || !card) return; const hp = card.querySelector('.hp'), max = card.querySelector('.max'); hp.value = Math.min(parseFloat(max.value), parseFloat(hp.value) + parseFloat(item.power)).toFixed(1); log(`💊 ${selections.itemUser}: [${item.name}] 사용, <b>${item.power}</b> 회복`, 'log-heal'); updateHP(card.id.split('_')[1]); toggleModal('useItemPopup', false); }
-    function exportData() { const data = { round, statusTypes, itemTypes, units: [] }; document.querySelectorAll('.char-card').forEach(card => { const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; }); const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => { const st = b.querySelector('.st-stack'); activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain }); }); data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') }); }); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click(); }
-    function importData(e) { const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = (re) => { const d = JSON.parse(re.target.result); document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round; statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; renderStatusTypeList(); renderItemTypeList(); if(d.units) d.units.forEach(u => createUnit(u.type, u)); refreshDropdowns(); broadcastData(); }; reader.readAsText(f); }
-    function resetAllData() { if(!isMaster) return; if(confirm("초기화?")) { round = 1; statusTypes = []; itemTypes = []; unitIdx = 0; document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; document.getElementById('logArea').innerHTML = ''; document.getElementById('roundNum').textContent = "1"; renderStatusTypeList(); renderItemTypeList(); broadcastData(); } }
-    function broadcastData() { if(isMaster) socket.emit('battleUpdate', { round, statusTypes, itemTypes, htmlP: document.getElementById('playerList').innerHTML, htmlE: document.getElementById('enemyList').innerHTML, log: document.getElementById('logArea').innerHTML }); }
+    
+    function exportData() {
+        const data = { round, statusTypes, itemTypes, skillData, units: [] };
+        document.querySelectorAll('.char-card').forEach(card => {
+            const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
+            const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => {
+                const st = b.querySelector('.st-stack');
+                activeStatus.push({ name: b.querySelector('span').textContent.split('(')[0], stat: st.dataset.stat, power: st.dataset.power, stacks: st.value, remainTurn: st.dataset.remain });
+            });
+            data.units.push({ type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS')?'player':'enemy', name: card.querySelector('.name-input').value, init: card.querySelector('.init-input').value, stats, activeStatus, isKO: card.classList.contains('is-ko'), isActive: card.classList.contains('active-turn'), isEnded: card.classList.contains('turn-ended') });
+        });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})); a.download = `battle_save.json`; a.click();
+    }
+    function importData(e) {
+        const f = e.target.files[0]; if(!f) return;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            const d = JSON.parse(re.target.result);
+            document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = '';
+            unitIdx = 0; round = d.round || 1; document.getElementById('roundNum').textContent = round;
+            statusTypes = d.statusTypes || []; itemTypes = d.itemTypes || []; skillData = d.skillData || [];
+            renderStatusTypeList(); renderItemTypeList(); renderSkillList();
+            if(d.units) d.units.forEach(u => createUnit(u.type, u));
+            refreshDropdowns(); broadcastData();
+        };
+        reader.readAsText(f);
+    }
+    function resetAllData() { if(!isMaster) return; if(confirm("초기화?")) { round = 1; statusTypes = []; itemTypes = []; skillData = []; unitIdx = 0; document.getElementById('playerList').innerHTML = ''; document.getElementById('enemyList').innerHTML = ''; document.getElementById('logArea').innerHTML = ''; document.getElementById('roundNum').textContent = "1"; renderStatusTypeList(); renderItemTypeList(); renderSkillList(); broadcastData(); } }
+    function broadcastData() { if(isMaster) socket.emit('battleUpdate', { round, statusTypes, itemTypes, skillData, htmlP: document.getElementById('playerList').innerHTML, htmlE: document.getElementById('enemyList').innerHTML, log: document.getElementById('logArea').innerHTML }); }
 
     socket.on('battleUpdate', (d) => {
         if(!isMaster) {
             round = d.round; document.getElementById('roundNum').textContent = round;
-            statusTypes = d.statusTypes; itemTypes = d.itemTypes;
+            statusTypes = d.statusTypes; itemTypes = d.itemTypes; skillData = d.skillData || [];
             document.getElementById('playerList').innerHTML = d.htmlP; document.getElementById('enemyList').innerHTML = d.htmlE;
             document.getElementById('logArea').innerHTML = d.log;
-            renderStatusTypeList(); renderItemTypeList();
+            renderStatusTypeList(); renderItemTypeList(); renderSkillList();
         }
     });
 </script>
