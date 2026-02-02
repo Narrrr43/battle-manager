@@ -102,6 +102,18 @@
         .border-poison { border: 3px solid #2ecc71 !important; box-shadow: inset 0 0 15px rgba(46, 204, 113, 0.6) !important; }
         /* 오염: 보라색 */
         .border-corrupt { border: 3px solid #9b59b6 !important; box-shadow: inset 0 0 15px rgba(155, 89, 182, 0.6) !important; }
+
+        /* 스킬 타입별 왼쪽 포인트 바 색상 */
+        .sk-type-일반 { border-left: 5px solid #bdc3c7 !important; }      /* 회색 */
+        .sk-type-개연주술 { border-left: 5px solid #3498db !important; }  /* 파랑 */
+        .sk-type-유성물 { border-left: 5px solid #e67e22 !important; }    /* 주황 */
+        .sk-type-유일술식 { 
+            border-left: 8px solid #e74c3c !important; /* 강렬한 빨강 */
+            background-color: #fff5f5 !important;      /* 연한 빨강 배경 */
+            box-shadow: inset 0 0 10px rgba(231, 76, 60, 0.1); 
+        }
+        /* 목록에 없는 기타 타입용 기본값 */
+        .sk-type-default { border-left: 5px solid #2ecc71; }
         
     </style>
 </head>
@@ -504,6 +516,12 @@
         const area = document.getElementById('skillListArea');
         if (!area) return;
     
+        // 1. 현재 어떤 그룹이 열려(block)있는지 상태를 저장
+        const openStates = {};
+        document.querySelectorAll('.skill-group-content').forEach(el => {
+            openStates[el.id] = el.style.display;
+        });
+    
         const grouped = skillData.reduce((acc, s) => { 
             if(!acc[s.owner]) acc[s.owner] = []; 
             acc[s.owner].push(s); 
@@ -512,34 +530,39 @@
     
         area.innerHTML = Object.keys(grouped).map(owner => {
             const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
+            // 2. 이전에 열려있었으면 열린 상태로, 기록이 없으면(새 캐릭터 등) 기본은 닫힘(none) 처리
+            const currentDisplay = openStates[safeId] || 'none';
             
             return `
-                <div class="skill-group" style="margin-bottom:5px; border:1px solid #eee; border-radius:4px; overflow:hidden;">
+                <div class="skill-group" style="margin-bottom:8px; border:1px solid #eee; border-radius:4px; overflow:hidden; background:white;">
                     <div class="skill-group-header" 
                          onclick="const el = document.getElementById('${safeId}'); el.style.display = (el.style.display === 'none' ? 'block' : 'none');"
-                         style="background:#f8f9fa; padding:8px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 ${owner} (${grouped[owner].length})</span>
-                        <span style="font-size:10px; color:#999;">클릭하여 열기/닫기</span>
+                         style="background:#f1f3f5; padding:10px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; justify-content:space-between; border-bottom:1px solid #eee;">
+                        <span>👤 ${owner} <small style="color:#888; margin-left:5px;">(${grouped[owner].length})</small></span>
+                        <span style="font-size:10px; color:#adb5bd;">클릭</span>
                     </div>
                     
-                    <div id="${safeId}" class="skill-group-content">
+                    <div id="${safeId}" class="skill-group-content" style="display:${currentDisplay};">
                         ${grouped[owner].map((s, idx) => {
-                            // [핵심] 엔터(\n)를 <br> 태그로 변환하는 로직
                             const formattedDesc = s.desc.replace(/\n/g, '<br>');
-                            
+                            // 스킬 타입에 따른 클래스 결정 (공백 제거)
+                            const typeClass = "sk-type-" + (s.type || "default").replace(/\s+/g, '');
+                            // 유일 술식일 경우 이름 앞에 아이콘 추가
+                            const isUltimate = s.type === '유일술식' ? '🔥 ' : '';
+    
                             return `
-                            <div style="padding:8px; border-bottom:1px solid #f9f9f9; font-size:11px; background:white; position:relative;">
-                                <b style="color:var(--skill-accent)">[${s.type}] ${s.name}</b>
+                            <div class="${typeClass}" style="padding:10px 12px; border-bottom:1px solid #f1f1f1; font-size:11px; position:relative; margin:2px 0;">
+                                <b style="color:#333; font-size:12px;">${isUltimate}[${s.type}] ${s.name}</b>
                                 <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
-                                        style="position:absolute; top:8px; right:8px; color:red; background:none; border:none; cursor:pointer;">×</button>
-                                <br>
-                                <span style="color:#666; display:block; margin-top:4px; line-height:1.6;">${formattedDesc}</span>
+                                        style="position:absolute; top:8px; right:8px; color:#ff8787; background:none; border:none; font-size:14px;">×</button>
+                                <div style="color:#555; margin-top:6px; line-height:1.6;">${formattedDesc}</div>
                             </div>`;
                         }).join('')}
                     </div>
                 </div>`;
         }).join('');
     }
+    
     // [필수 UI 및 유틸 - 원본 유지]
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
