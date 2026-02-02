@@ -90,6 +90,18 @@
         /* 3. 상태이상(행동불능 등) 시각 효과 */
         .card-disabled { filter: grayscale(0.8) brightness(0.7); pointer-events: none; }
         .card-dot-effect { box-shadow: inset 0 0 15px rgba(155, 89, 182, 0.6); border: 2px solid #9b59b6 !important; }
+
+        /* 상태이상 공통 효과 (테두리 및 안쪽 발광) */
+        .card-status-effect { border-width: 3px !important; transition: all 0.3s ease; }
+        
+        /* 감전: 파란색 */
+        .border-elec { border: 3px solid #3498db !important; box-shadow: inset 0 0 15px rgba(52, 152, 219, 0.6) !important; }
+        /* 화상/출혈: 빨간색 */
+        .border-red { border: 3px solid #e74c3c !important; box-shadow: inset 0 0 15px rgba(231, 76, 60, 0.6) !important; }
+        /* 중독: 초록색 */
+        .border-poison { border: 3px solid #2ecc71 !important; box-shadow: inset 0 0 15px rgba(46, 204, 113, 0.6) !important; }
+        /* 오염: 보라색 */
+        .border-corrupt { border: 3px solid #9b59b6 !important; box-shadow: inset 0 0 15px rgba(155, 89, 182, 0.6) !important; }
         
     </style>
 </head>
@@ -568,33 +580,61 @@
     function removeTag(m, n) { selections[m + 'Tar'] = selections[m + 'Tar'].filter(x => x !== n); renderTags(m); }
     function openUnitStatusSelect(e, id) { e.stopPropagation(); closeMenus(); const m = document.getElementById(`unitStatusMenu_${id}`); m.innerHTML = statusTypes.map(s => `<div onclick="addStatusToUnit(${id}, '${s.name}', '${s.stat}', ${s.power}, ${s.turn})">${s.name}</div>`).join(""); m.style.display = 'block'; }
 
-    function addStatusToUnit(id, name, stat, power, turn) {
-    const c = document.getElementById(`unitActiveStatus_${id}`);
-    const card = document.getElementById(`char_${id}`); // 시각 효과를 위해 카드 찾기
-    const div = document.createElement('div');
-    div.className = 'status-badge';
+    // 1. 상태이상 시각 효과 갱신 함수 (필수!)
+    function refreshStatusEffects(card) {
+        if (!card) return;
+        
+        // 이전 효과 클래스 초기화
+        card.classList.remove('card-disabled', 'border-elec', 'border-red', 'border-poison', 'border-corrupt');
     
-    // 1. 배지 생성 (기존 유지)
-    div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span>
-        <div>
-            <input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> 
-            <b onclick="if(isMaster){this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('char_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
-        </div>`;
+        let hasDisable = false;
+        let currentBorder = "";
     
-    c.appendChild(div);
-
-    // 2. [추가] 상태이상 부여 알림 로그
-    const unitName = card.querySelector('.name').value;
-    const turnText = turn == 0 ? "영구" : `${turn}턴`;
-    log(`⚠️ ${unitName}: [${name}] 효과 부여! (${turnText})`, 'log-dice');
-
-    // 3. [추가] 3번 시각 효과 갱신
-    if(typeof refreshStatusEffects === 'function') {
-        refreshStatusEffects(card);
+        // 카드 내 모든 상태 배지를 확인
+        card.querySelectorAll('.status-badge').forEach(badge => {
+            const spanText = badge.querySelector('span').innerText;
+    
+            if (spanText.includes('감전')) currentBorder = 'border-elec';
+            else if (spanText.includes('화상') || spanText.includes('출혈')) currentBorder = 'border-red';
+            else if (spanText.includes('중독') || spanText.includes('독')) currentBorder = 'border-poison';
+            else if (spanText.includes('오염')) currentBorder = 'border-corrupt';
+    
+            // 행동불능 체크
+            if (spanText.includes('기절') || spanText.includes('빙결')) hasDisable = true;
+        });
+    
+        if (hasDisable) card.classList.add('card-disabled');
+        if (currentBorder) card.classList.add(currentBorder);
     }
-
-    closeMenus();
-    broadcastData();
+    
+    // 2. 상태이상 부여 함수 (로그 및 시각효과 포함)
+    function addStatusToUnit(id, name, stat, power, turn) {
+        const c = document.getElementById(`unitActiveStatus_${id}`);
+        const card = document.getElementById(`unitCard_${id}`); // 마스터님의 카드 ID 형식 (unitCard_숫자)
+        if(!c || !card) return;
+    
+        const div = document.createElement('div');
+        div.className = 'status-badge';
+        
+        // 배지 생성 (삭제 버튼 클릭 시 시각효과 갱신 포함)
+        div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span>
+            <div>
+                <input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> 
+                <b onclick="if(isMaster){this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('unitCard_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
+            </div>`;
+        
+        c.appendChild(div);
+    
+        // [중요] 상태이상 부여 알림 로그 출력
+        const unitName = card.querySelector('.name-input').value;
+        const turnText = turn == 0 ? "영구" : `${turn}턴`;
+        log(`⚠️ ${unitName}: [${name}] 효과 부여! (${turnText})`, 'log-dice');
+    
+        // 시각 효과 즉시 반영
+        refreshStatusEffects(card);
+    
+        closeMenus();
+        broadcastData();
     }
     
     function rollDice() { const formula = document.getElementById('diceType').value || "1d100", success = parseInt(document.getElementById('diceSuccess').value); const parts = formula.toLowerCase().split('d'); let total = 0; if(parts.length === 2) { const count = parseInt(parts[0]) || 1, sides = parseInt(parts[1]) || 100; for(let i=0; i<count; i++) total += Math.floor(Math.random() * sides) + 1; } let msg = `🎲 다이스: <b>${total}</b> (${formula})`; if(!isNaN(success)) msg += total <= success ? ` <span style="color:blue;">[성공]</span>` : ` <span style="color:red;">[실패]</span>`; log(msg, 'log-dice'); }
