@@ -504,7 +504,6 @@
         const area = document.getElementById('skillListArea');
         if (!area) return;
     
-        // 데이터를 캐릭터별로 그룹화
         const grouped = skillData.reduce((acc, s) => { 
             if(!acc[s.owner]) acc[s.owner] = []; 
             acc[s.owner].push(s); 
@@ -512,7 +511,6 @@
         }, {});
     
         area.innerHTML = Object.keys(grouped).map(owner => {
-            // ID에서 공백을 제거하여 고유한 ID 생성 (접기/펴기 제어용)
             const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
             
             return `
@@ -524,25 +522,24 @@
                         <span style="font-size:10px; color:#999;">클릭하여 열기/닫기</span>
                     </div>
                     
-                        <div id="${safeId}" class="skill-group-content" style="display:none;">
-                        ${grouped[owner].map((s, idx) => `
+                    <div id="${safeId}" class="skill-group-content">
+                        ${grouped[owner].map((s, idx) => {
+                            // [핵심] 엔터(\n)를 <br> 태그로 변환하는 로직
+                            const formattedDesc = s.desc.replace(/\n/g, '<br>');
+                            
+                            return `
                             <div style="padding:8px; border-bottom:1px solid #f9f9f9; font-size:11px; background:white; position:relative;">
                                 <b style="color:var(--skill-accent)">[${s.type}] ${s.name}</b>
                                 <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
                                         style="position:absolute; top:8px; right:8px; color:red; background:none; border:none; cursor:pointer;">×</button>
                                 <br>
-                                <span style="color:#666; display:block; margin-top:4px; line-height:1.4;">${s.desc}</span>
-                            </div>`).join('')}
+                                <span style="color:#666; display:block; margin-top:4px; line-height:1.6;">${formattedDesc}</span>
+                            </div>`;
+                        }).join('')}
                     </div>
                 </div>`;
         }).join('');
     }
-
-    function deleteSkill(owner, idx) { 
-        const realIdx = skillData.findIndex(s => s.owner === owner && skillData.filter(x => x.owner === owner).indexOf(s) === idx);
-        skillData.splice(realIdx, 1); renderSkillList(); broadcastData(); 
-    }
-
     // [필수 UI 및 유틸 - 원본 유지]
     function log(m, t = '') { const a = document.getElementById('logArea'); const d = document.createElement('div'); d.className = `log-line ${t}`; d.innerHTML = m; a.prepend(d); }
     function startFirstTurn() { turnList = []; document.querySelectorAll('.char-card').forEach(c => { const id = c.id.split('_')[1], v = c.querySelector('.init-input').value; v.split(',').forEach(o => { const n = parseInt(o.trim()); if(!isNaN(n)) turnList.push({ id, order: n }); }); }); turnList.sort((a, b) => a.order - b.order); currentTurnPointer = 0; processNextTurn(); }
