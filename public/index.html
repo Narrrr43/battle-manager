@@ -252,7 +252,7 @@
 <script>
     const socket = io();
     const MASTER_PW = "qazplm10110925";
-    let isMaster = false; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
+    const isMaster = true; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
     let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "", skillOwner: "" };
     let turnList = []; let currentTurnPointer = -1;
 
@@ -802,37 +802,30 @@
     }  
     
     function broadcastData() { 
-        if(isMaster) {
-            socket.emit('battleUpdate', { 
-                round,
-                // 데이터는 보내두되, 화면은 HTML 통째로 전송하는 방식 유지
-                skillData, 
-                htmlP: document.getElementById('playerList').innerHTML, 
-                htmlE: document.getElementById('enemyList').innerHTML, 
-                htmlS: document.getElementById('skillListArea').innerHTML, // 스킬창도 HTML로 직접 전송
-                log: document.getElementById('logArea').innerHTML 
-            }); 
-        }
+        // if(isMaster) 이 줄을 지우고 내용만 남깁니다.
+        const dataToSync = { 
+            round, statusTypes, itemTypes, skillData,
+            htmlP: document.getElementById('playerList').innerHTML, 
+            htmlE: document.getElementById('enemyList').innerHTML, 
+            htmlS: document.getElementById('skillListArea').innerHTML,
+            log: document.getElementById('logArea').innerHTML 
+        };
+        socket.emit('battleUpdate', dataToSync); 
     }
 
     socket.on('battleUpdate', (d) => {
-    if(!isMaster) {
-        // 라운드 수치 업데이트
-        if(d.round !== undefined) {
-            round = d.round;
-            document.getElementById('roundNum').textContent = round;
-        }
+    // if(!isMaster) 이 조건문을 지워버리세요.
+    round = d.round; 
+    document.getElementById('roundNum').textContent = round;
+    statusTypes = d.statusTypes || [];
+    itemTypes = d.itemTypes || [];
+    skillData = d.skillData || [];
 
-        // 스킬 데이터 동기화 (내부 연산용으로만 유지)
-        skillData = d.skillData || [];
-
-        // [핵심] 마스터가 만든 화면을 그대로 박제함
-        // 관전자 페이지에서 직접 그리는(render) 과정을 생략해서 오류를 원천 차단합니다.
-        document.getElementById('playerList').innerHTML = d.htmlP; 
-        document.getElementById('enemyList').innerHTML = d.htmlE; 
-        document.getElementById('skillListArea').innerHTML = d.htmlS; // 마스터가 접고 펴놓은 상태 그대로 전송됨
-        document.getElementById('logArea').innerHTML = d.log;
-    }
+    // 화면 동기화
+    document.getElementById('playerList').innerHTML = d.htmlP; 
+    document.getElementById('enemyList').innerHTML = d.htmlE; 
+    document.getElementById('skillListArea').innerHTML = d.htmlS; 
+    document.getElementById('logArea').innerHTML = d.log;
 });
 </script>
 </body>
