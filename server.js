@@ -8,19 +8,20 @@ app.use(express.static('public'));
 
 let currentBattleData = null;
 
+// [서버 코드 수정본]
 io.on('connection', (socket) => {
     console.log('사용자 접속');
 
-    // 새로 접속한 사람에게 현재 배틀 상태 전송
     if (currentBattleData) {
         socket.emit('update_from_server', currentBattleData);
     }
 
-    // 누군가 배틀 데이터를 업데이트했을 때
-    socket.on('sync_to_server', (data) => {
+    // 이름을 'update_data'로 일치시킵니다.
+    socket.on('update_data', (data) => { 
         currentBattleData = data;
-        // 보낸 사람을 제외한 모든 접속자에게 전송
-        socket.broadcast.emit('update_from_server', data);
+        // 마스터 화면뿐만 아니라 관전자 화면에도 즉시 반영되도록 io.emit 사용을 권장합니다.
+        // 만약 본인(마스터) 화면이 중복 갱신되는 게 싫다면 기존처럼 socket.broadcast.emit을 쓰셔도 됩니다.
+        io.emit('update_from_server', data); 
     });
 
     socket.on('disconnect', () => {
