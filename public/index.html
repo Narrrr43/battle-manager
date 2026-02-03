@@ -303,7 +303,6 @@
     
     // [캐릭터 내부 추가피해 전용 실행 함수 - 원본 유지]
     function executeExtraDamage(id) {
-        if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const input = card.querySelector('.extra-dmg-input');
         const percent = parseFloat(input.value);
@@ -378,7 +377,6 @@
 
     // [상태이상 결산 로직 - 원본 유지]
     function finishCurrentTurn(id) {
-        if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const name = card.querySelector('.name-input').value;
         const badges = card.querySelectorAll('.status-badge');
@@ -801,7 +799,6 @@
     }
 
     function resetAllData() {
-        if(!isMaster) return;
         
         if(confirm("유닛은 유지하고 라운드, 상태이상, 로그만 초기화할까요?")) {
             // 1. 라운드 및 시스템 데이터 초기화
