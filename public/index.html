@@ -786,7 +786,7 @@
         // [중요] 상태이상 부여 알림 로그 출력
         const unitName = card.querySelector('.name-input').value;
         const turnText = turn == 0 ? "영구" : `${turn}턴`;
-        log(`⚠️ ${unitName}: [${name}] 효과 부여! (${turnText})`, 'log-dice');
+        log(`⚠️ ${unitName}: [${name}] 효과를 부여했습니다. (${turnText})`, 'log-dice');
     
         // 시각 효과 즉시 반영
         refreshStatusEffects(card);
