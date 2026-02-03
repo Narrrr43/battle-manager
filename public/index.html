@@ -49,6 +49,7 @@
         .status-badge { display: flex; justify-content: space-between; align-items: center; background: #f1f2f6; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; font-size: 10px; }
         .status-badge input { width: 28px; text-align: center; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         .is-viewer .admin-control { pointer-events: none; opacity: 0.7; }
+        #masterBadge { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2000; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .admin-only { background: var(--turn-active); color: #000; }
         .viewer-only { background: #636e72; color: #fff; }
         
@@ -116,8 +117,9 @@
         
     </style>
 </head>
-<body onclick="closeMenus()">
+<body onclick="closeMenus()" class="is-viewer">
 
+<div id="masterBadge" class="viewer-only" onclick="askMasterPassword()">👀 관전자 모드 (인증하려면 클릭)</div>
 <div class="overlay" id="overlay" onclick="closeAllModals()"></div>
 
 <div id="statusManagerMenu" class="modal">
@@ -249,86 +251,16 @@
 
 <script>
     const socket = io();
-    let isMaster = true;
-    let unitIdx = 0; 
-    let round = 1; 
-    let statusTypes = []; 
-    let itemTypes = [];
-    let skillData = []; // <--- 이 줄이 없어서 스킬 등록 시 에러가 났었습니다!
-
+    const MASTER_PW = "qazplm10110925";
+    let isMaster = false; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
     let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "", skillOwner: "" };
-    let turnList = []; 
-    let currentTurnPointer = -1;
+    let turnList = []; let currentTurnPointer = -1;
 
-    function broadcastData() {
-            const data = {
-                round: round,
-                logHtml: document.getElementById('logArea').innerHTML,
-                statusTypes: statusTypes,
-                itemTypes: itemTypes,
-                skillData: typeof skillData !== 'undefined' ? skillData : [], // 스킬 데이터 추가
-                units: []
-            };
-            
-            document.querySelectorAll('.char-card').forEach(card => {
-                const stats = {}; 
-                card.querySelectorAll('.stat-grid input').forEach(i => { 
-                    if(i.className) stats[i.className] = i.value; 
-                });
-                
-                const activeStatus = []; 
-                card.querySelectorAll('.status-badge').forEach(b => {
-                    const st = b.querySelector('.st-stack');
-                    activeStatus.push({ 
-                        name: b.querySelector('span').textContent.split('(')[0], 
-                        stat: st.dataset.stat, power: st.dataset.power, 
-                        stacks: st.value, remainTurn: st.dataset.remain 
-                    });
-                });
+    function askMasterPassword() { const pw = prompt("비밀번호:"); if (pw === MASTER_PW) { isMaster = true; document.body.classList.remove('is-viewer'); document.getElementById('masterBadge').textContent = "👑 마스터 권한 활성화"; document.getElementById('masterBadge').className = "admin-only"; alert("인증 성공!"); broadcastData(); } }
     
-                data.units.push({
-                    type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS') ? 'player' : 'enemy',
-                    name: card.querySelector('.name-input').value,
-                    init: card.querySelector('.init-input').value,
-                    stats: stats,
-                    activeStatus: activeStatus,
-                    isKO: card.classList.contains('is-ko'),
-                    isActive: card.classList.contains('active-turn'),
-                    isEnded: card.classList.contains('turn-ended')
-                });
-            });
-    
-            // 서버가 인식하는 이벤트 이름으로 전송
-            socket.emit('battleUpdate', data);
-        }
-    
-        // 서버에서 데이터를 받았을 때 화면 갱신
-        socket.on('battleUpdate', (data) => {
-            if(!data) return;
-    
-            round = data.round;
-            document.getElementById('roundNum').textContent = round;
-            document.getElementById('logArea').innerHTML = data.logHtml;
-            statusTypes = data.statusTypes || [];
-            itemTypes = data.itemTypes || [];
-            skillData = data.skillData || []; // 스킬 데이터 수신
-    
-            renderStatusTypeList(); 
-            renderItemTypeList();
-            
-            // 스킬 리스트 렌더링 (함수가 존재할 때만 실행)
-            if(typeof renderSkillList === 'function') renderSkillList();
-            
-            // 화면 초기화 후 유닛 재생성
-            document.getElementById('playerList').innerHTML = '';
-            document.getElementById('enemyList').innerHTML = '';
-            if(data.units) {
-                data.units.forEach(u => createUnit(u.type, u));
-            }
-        });
-        
     // [캐릭터 내부 추가피해 전용 실행 함수 - 원본 유지]
     function executeExtraDamage(id) {
+        if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const input = card.querySelector('.extra-dmg-input');
         const percent = parseFloat(input.value);
@@ -358,7 +290,7 @@
         unitIdx++; const id = unitIdx; const c = document.getElementById(t === 'player' ? 'playerList' : 'enemyList');
         const div = document.createElement('div'); div.className = 'char-card'; div.id = `unitCard_${id}`;
         if(s?.isKO) div.classList.add('is-ko'); if(s?.isActive) div.classList.add('active-turn'); if(s?.isEnded) div.classList.add('turn-ended');
-        const ro = "";
+        const ro = isMaster ? "" : "readonly";
         div.innerHTML = `
             <div class="ko-badge">전투 불능</div>
             <div class="card-header" onclick="toggleCard(${id})">
@@ -394,7 +326,7 @@
             const stC = div.querySelector(`#unitActiveStatus_${id}`);
             s.activeStatus.forEach(st => {
                 const b = document.createElement('div'); b.className = 'status-badge';
-                b.innerHTML = `<span>${st.name}${st.remainTurn == 0 ? '(영구)': '('+st.remainTurn+'T)'}</span><div><input type="number" value="${st.stacks}" class="st-stack" data-stat="${st.stat}" data-power="${st.power}" data-remain="${st.remainTurn}" onchange="broadcastData()"> <b onclick="this.parentNode.parentNode.remove(); broadcastData();" style="color:red; cursor:pointer;">×</b></div>`;
+                b.innerHTML = `<span>${st.name}${st.remainTurn == 0 ? '(영구)': '('+st.remainTurn+'T)'}</span><div><input type="number" value="${st.stacks}" class="st-stack" data-stat="${st.stat}" data-power="${st.power}" data-remain="${st.remainTurn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
                 stC.appendChild(b);
             });
         }
@@ -403,6 +335,7 @@
 
     // [상태이상 결산 로직 - 원본 유지]
     function finishCurrentTurn(id) {
+        if(!isMaster) return;
         const card = document.getElementById(`unitCard_${id}`);
         const name = card.querySelector('.name-input').value;
         const badges = card.querySelectorAll('.status-badge');
@@ -776,7 +709,7 @@
         div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span>
             <div>
                 <input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> 
-                <b onclick="this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('unitCard_${id}')); broadcastData();" style="color:red; cursor:pointer;">×</b>
+                <b onclick="if(isMaster){this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('unitCard_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
             </div>`;
         
         c.appendChild(div);
@@ -825,6 +758,7 @@
     }
 
     function resetAllData() {
+        if(!isMaster) return;
         
         if(confirm("유닛은 유지하고 라운드, 상태이상, 로그만 초기화할까요?")) {
             // 1. 라운드 및 시스템 데이터 초기화
@@ -865,8 +799,54 @@
     
             broadcastData();
         }
-    }  
+    }    
+    // [마스터용] 데이터 전송
+    function broadcastData() { 
+        if(isMaster) {
+            socket.emit('battleUpdate', { 
+                round: round, 
+                statusTypes: statusTypes, 
+                itemTypes: itemTypes, 
+                skillData: skillData, // 이름 확인!
+                htmlP: document.getElementById('playerList').innerHTML, 
+                htmlE: document.getElementById('enemyList').innerHTML, 
+                log: document.getElementById('logArea').innerHTML 
+            }); 
+        }
+    }
+
+    // [관전자용] 데이터 수신 및 화면 갱신
+    socket.on('battleUpdate', (d) => {
+        if(!isMaster) {
+            // 1. 기본 수치 업데이트
+            round = d.round; 
+            const roundEl = document.getElementById('roundNum');
+            if(roundEl) roundEl.textContent = round; 
     
+            // 2. 데이터 동기화
+            statusTypes = d.statusTypes || []; 
+            itemTypes = d.itemTypes || []; 
+            skillData = d.skillData || []; // 마스터가 보낸 이름과 똑같이!
+    
+            // 3. HTML 영역 통째로 복사 (유닛 카드 등)
+            const pList = document.getElementById('playerList');
+            const eList = document.getElementById('enemyList');
+            const lArea = document.getElementById('logArea');
+    
+            if(pList) pList.innerHTML = d.htmlP; 
+            if(eList) eList.innerHTML = d.htmlE; 
+            if(lArea) lArea.innerHTML = d.log;
+    
+            // 4. 리스트 다시 그리기 (함수 내부 오류 방지를 위해 try-catch 권장)
+            try {
+                if(typeof renderStatusTypeList === 'function') renderStatusTypeList();
+                if(typeof renderItemTypeList === 'function') renderItemTypeList();
+                if(typeof renderSkillList === 'function') renderSkillList();
+            } catch(e) {
+                console.error("렌더링 중 오류 발생:", e);
+            }
+        }
+    });
 </script>
 </body>
 </html>
