@@ -818,33 +818,44 @@
     // [관전자용] 데이터 수신 및 화면 갱신
     socket.on('battleUpdate', (d) => {
         if(!isMaster) {
-            // 1. 기본 수치 업데이트
-            round = d.round; 
-            const roundEl = document.getElementById('roundNum');
-            if(roundEl) roundEl.textContent = round; 
+            console.log("데이터 수신됨:", d); // 데이터가 오는지 콘솔(F12)에서 확인용
     
-            // 2. 데이터 동기화
-            statusTypes = d.statusTypes || []; 
-            itemTypes = d.itemTypes || []; 
-            skillData = d.skillData || []; // 마스터가 보낸 이름과 똑같이!
+            // 1. 라운드 업데이트
+            if (d.round !== undefined) {
+                round = d.round;
+                const rNum = document.getElementById('roundNum');
+                if(rNum) rNum.textContent = round;
+            }
     
-            // 3. HTML 영역 통째로 복사 (유닛 카드 등)
-            const pList = document.getElementById('playerList');
-            const eList = document.getElementById('enemyList');
-            const lArea = document.getElementById('logArea');
+            // 2. 데이터 저장 (기존 데이터 보존)
+            statusTypes = d.statusTypes || statusTypes || [];
+            itemTypes = d.itemTypes || itemTypes || [];
+            skillData = d.skillData || [];
     
-            if(pList) pList.innerHTML = d.htmlP; 
-            if(eList) eList.innerHTML = d.htmlE; 
-            if(lArea) lArea.innerHTML = d.log;
+            // 3. HTML 영역 업데이트 (유닛 카드 등)
+            // 화면이 비어있다면 이 ID들이 실제 HTML에 있는지 꼭 확인해야 합니다!
+            const areas = {
+                'playerList': d.htmlP,
+                'enemyList': d.htmlE,
+                'logArea': d.log
+            };
     
-            // 4. 리스트 다시 그리기 (함수 내부 오류 방지를 위해 try-catch 권장)
-            try {
+            for (const [id, html] of Object.entries(areas)) {
+                const el = document.getElementById(id);
+                if (el && html !== undefined) {
+                    el.innerHTML = html;
+                } else if (!el) {
+                    console.warn(`경고: ID가 '${id}'인 요소를 찾을 수 없습니다.`);
+                }
+            }
+    
+            // 4. 스킬/상태/아이템 리스트 렌더링
+            // 화면에 유닛들이 그려진 '후'에 실행되도록 보장합니다.
+            setTimeout(() => {
                 if(typeof renderStatusTypeList === 'function') renderStatusTypeList();
                 if(typeof renderItemTypeList === 'function') renderItemTypeList();
                 if(typeof renderSkillList === 'function') renderSkillList();
-            } catch(e) {
-                console.error("렌더링 중 오류 발생:", e);
-            }
+            }, 50);
         }
     });
 </script>
