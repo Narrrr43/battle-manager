@@ -282,11 +282,11 @@
                     isEnded: card.classList.contains('turn-ended')
                 });
             });
-            socket.emit('sync_to_server', data);
+            socket.emit('battleUpdate', data);
         }
     
         // 서버에서 데이터를 받았을 때 화면 갱신
-        socket.on('update_from_server', (data) => {
+        socket.on('battleUpdate', (data) => {
             round = data.round;
             document.getElementById('roundNum').textContent = round;
             document.getElementById('logArea').innerHTML = data.logHtml;
