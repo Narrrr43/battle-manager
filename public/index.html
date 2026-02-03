@@ -552,7 +552,7 @@
     
                             return `
                             <div class="${typeClass}" style="padding:10px 12px; border-bottom:1px solid #f1f1f1; font-size:11px; position:relative; margin:2px 0;">
-                                <b style="color:#333; font-size:12px;">${isUltimate}[${s.type}] ${s.name}</b>
+                                <b style="color:#6A5ACD; font-size:12px;">[${s.type}] ${s.name}</b>
                                 <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
                                         style="position:absolute; top:8px; right:8px; color:#ff8787; background:none; border:none; font-size:14px;">×</button>
                                 <div style="color:#555; margin-top:6px; line-height:1.6;">${formattedDesc}</div>
@@ -561,6 +561,34 @@
                     </div>
                 </div>`;
         }).join('');
+    }
+
+    function deleteSkill(owner, idx) { 
+        // 삭제 전 확인 창 (실수 방지)
+        if(!confirm(`[${owner}]의 해당 스킬을 삭제하시겠습니까?`)) return;
+    
+        // 1. 해당 캐릭터(owner)의 스킬들만 필터링
+        const ownerSkills = skillData.filter(s => s.owner === owner);
+        
+        // 2. 해당 캐릭터의 스킬 뭉치 중 클릭한 순서(idx)의 스킬 객체를 특정
+        const targetSkill = ownerSkills[idx];
+    
+        if (targetSkill) {
+            // 3. 전체 데이터(skillData)에서 해당 스킬 객체의 진짜 인덱스를 찾음
+            const realIdx = skillData.indexOf(targetSkill);
+            
+            if (realIdx !== -1) {
+                // 4. 실제 데이터 삭제
+                skillData.splice(realIdx, 1);
+                
+                // 5. 화면 갱신 및 데이터 동기화 (기존 함수들 호출)
+                renderSkillList(); 
+                if(typeof broadcastData === 'function') broadcastData();
+                
+                // 로그 기록 (시스템에 log 함수가 있을 경우)
+                if(typeof log === 'function') log(`🗑️ ${owner}의 스킬이 삭제되었습니다.`, 'log-dice');
+            }
+        }
     }
     
     // [필수 UI 및 유틸 - 원본 유지]
