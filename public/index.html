@@ -504,23 +504,11 @@
     }
     
     // [신규 스킬 메모 기능 로직]
-    // 스킬 등록 시 '에너미' 체크박스나 특정 접두어를 활용한다고 가정합니다.
     function addNewSkill() {
-        const owner = selections.skillOwner;
-        const name = document.getElementById('skName').value;
-        const desc = document.getElementById('skDesc').value;
-        const type = document.getElementById('skType').value;
-        
+        const owner = selections.skillOwner, name = document.getElementById('skName').value, desc = document.getElementById('skDesc').value, type = document.getElementById('skType').value;
         if(!owner || !name) return alert("캐릭터와 스킬명을 입력하세요.");
-    
-        // [아이디어] 캐릭터 이름에 '에너미'가 포함되거나, 별도의 체크박스를 만드셔도 좋습니다.
-        // 여기서는 간단하게 owner 이름으로 구분하거나 데이터에 속성을 추가합니다.
-        const isEnemy = owner.includes("[E]") || owner.includes("에너미"); 
-    
-        skillData.push({ owner, name, desc, type, isEnemy }); // isEnemy 속성 추가
-        renderSkillList();
-        document.getElementById('skName').value = "";
-        document.getElementById('skDesc').value = "";
+        skillData.push({ owner, name, desc, type });
+        renderSkillList(); document.getElementById('skName').value = ""; document.getElementById('skDesc').value = "";
         broadcastData();
     }
 
@@ -528,66 +516,53 @@
         const area = document.getElementById('skillListArea');
         if (!area) return;
     
-        // 현재 열림 상태 저장
+        // 1. 현재 어떤 그룹이 열려(block)있는지 상태를 저장
         const openStates = {};
         document.querySelectorAll('.skill-group-content').forEach(el => {
             openStates[el.id] = el.style.display;
         });
     
-        // 데이터를 플레이어와 에너미로 분리
-        const players = skillData.filter(s => !s.isEnemy);
-        const enemies = skillData.filter(s => s.isEnemy);
+        const grouped = skillData.reduce((acc, s) => { 
+            if(!acc[s.owner]) acc[s.owner] = []; 
+            acc[s.owner].push(s); 
+            return acc; 
+        }, {});
     
-        // 내부 렌더링용 헬퍼 함수
-        const makeGroupHTML = (data, sectionTitle, themeColor) => {
-            const grouped = data.reduce((acc, s) => { 
-                if(!acc[s.owner]) acc[s.owner] = []; 
-                acc[s.owner].push(s); 
-                return acc; 
-            }, {});
-    
-            const sortedOwners = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-    
+        area.innerHTML = Object.keys(grouped).map(owner => {
+            const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
+            // 2. 이전에 열려있었으면 열린 상태로, 기록이 없으면(새 캐릭터 등) 기본은 닫힘(none) 처리
+            const currentDisplay = openStates[safeId] || 'none';
+            
             return `
-                <div class="skill-section" style="margin-top:15px;">
-                    <div style="padding:5px 10px; background:${themeColor}; color:white; font-weight:bold; border-radius:4px; margin-bottom:10px;">
-                        ${sectionTitle}
+                <div class="skill-group" style="margin-bottom:8px; border:1px solid #eee; border-radius:4px; overflow:hidden; background:white;">
+                    <div class="skill-group-header" 
+                         onclick="const el = document.getElementById('${safeId}'); el.style.display = (el.style.display === 'none' ? 'block' : 'none');"
+                         style="background:#f1f3f5; padding:10px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; justify-content:space-between; border-bottom:1px solid #eee;">
+                        <span>👤 ${owner} <small style="color:#888; margin-left:5px;">(${grouped[owner].length})</small></span>
+                        <span style="font-size:10px; color:#adb5bd;">클릭</span>
                     </div>
-                    ${sortedOwners.map(owner => {
-                        const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
-                        const currentDisplay = openStates[safeId] || 'none';
-                        return `
-                            <div class="skill-group" style="margin-bottom:8px; border:1px solid #eee; border-radius:4px; overflow:hidden; background:white;">
-                                <div class="skill-group-header" 
-                                     onclick="const el = document.getElementById('${safeId}'); el.style.display = (el.style.display === 'none' ? 'block' : 'none');"
-                                     style="background:#f8f9fa; padding:10px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; justify-content:space-between;">
-                                    <span>👤 ${owner} <small>(${grouped[owner].length})</small></span>
-                                    <span style="font-size:10px; color:#adb5bd;">클릭</span>
-                                </div>
-                                <div id="${safeId}" class="skill-group-content" style="display:${currentDisplay};">
-                                    ${grouped[owner].map((s, idx) => {
-                                        const formattedDesc = s.desc.replace(/\n/g, '<br>');
-                                        const typeClass = "sk-type-" + (s.type || "default").replace(/\s+/g, '');
-                                        return `
-                                        <div class="${typeClass}" style="padding:10px 12px; border-bottom:1px solid #f1f1f1; font-size:11px; position:relative;">
-                                            <b style="color:#6A5ACD; font-size:12px;">[${s.type}] ${s.name}</b>
-                                            <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
-                                                    style="position:absolute; top:8px; right:8px; color:#ff8787; background:none; border:none;">×</button>
-                                            <div style="color:#555; margin-top:6px; line-height:1.6;">${formattedDesc}</div>
-                                        </div>`;
-                                    }).join('')}
-                                </div>
-                            </div>`;
-                    }).join('')}
-                </div>`;
-        };
+                    
+                    <div id="${safeId}" class="skill-group-content" style="display:${currentDisplay};">
+                        ${grouped[owner].map((s, idx) => {
+                            const formattedDesc = s.desc.replace(/\n/g, '<br>');
+                            // 스킬 타입에 따른 클래스 결정 (공백 제거)
+                            const typeClass = "sk-type-" + (s.type || "default").replace(/\s+/g, '');
+                            // 유일 술식일 경우 이름 앞에 아이콘 추가
+                            const isUltimate = s.type === '유일술식' ? '🔥 ' : '';
     
-        // 두 영역을 합쳐서 출력 (플레이어는 파랑계열, 에너미는 빨강계열 헤더)
-        area.innerHTML = `
-            ${makeGroupHTML(players, "📜 플레이어 스킬", "#6A5ACD")}
-            ${makeGroupHTML(enemies, "👿 에너미 스킬", "#c0392b")}
-        `;
+                            return `
+                            <div class="${typeClass}" style="padding:10px 12px; border-bottom:1px solid #f1f1f1; font-size:11px; position:relative; margin:2px 0;">
+                                <b style="color:#6A5ACD; font-size:12px;">[${s.type}] ${s.name}</b>
+                                <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
+                                        style="position:absolute; top:8px; right:8px; color:#ff8787; background:none; border:none; font-size:14px;">×</button>
+                                <div style="color:#555; margin-top:6px; line-height:1.6;">${formattedDesc}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        }).join('');
     }
+
     function deleteSkill(owner, idx) { 
         // 삭제 전 확인 창 (실수 방지)
         if(!confirm(`[${owner}]의 해당 스킬을 삭제하시겠습니까?`)) return;
