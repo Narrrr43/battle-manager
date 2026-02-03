@@ -116,7 +116,7 @@
         
     </style>
 </head>
-<body onclick="closeMenus()" class="is-viewer">
+<body onclick="closeMenus()">
 
 <div class="overlay" id="overlay" onclick="closeAllModals()"></div>
 
@@ -249,9 +249,16 @@
 
 <script>
     const socket = io();
-    let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = [];
+    let isMaster = true;
+    let unitIdx = 0; 
+    let round = 1; 
+    let statusTypes = []; 
+    let itemTypes = [];
+    let skillData = []; // <--- 이 줄이 없어서 스킬 등록 시 에러가 났었습니다!
+
     let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "", skillOwner: "" };
-    let turnList = []; let currentTurnPointer = -1;
+    let turnList = []; 
+    let currentTurnPointer = -1;
 
     function broadcastData() {
             const data = {
