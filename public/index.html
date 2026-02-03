@@ -414,13 +414,28 @@
     
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
-                const hitRoll = Math.floor(Math.random() * 100) + 1;
-                if(hitRoll > sHit) return log(`💨 ${src} → ${n}: [Hit:${hitRoll}/${sHit}] 실패!`, 'log-dice');
-                const evaRoll = Math.floor(Math.random() * 100) + 1;
-                if(evaRoll <= tEva) return log(`🛡️ ${n} 회피! [Eva:${evaRoll}/${tEva}]`, 'log-dice');
                 
-                const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
-                const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
+                // [수정] 명중 여부 판단
+                let isHit = false;
+                const hitRoll = Math.floor(Math.random() * 100) + 1;
+
+                if (sHit >= 100) {
+                    // 1. 명중 100 이상이면 무조건 성공 (절대 명중)
+                    isHit = true;
+                } else {
+                    // 2. 명중 100 미만일 때: [내 명중 - (상대 회피 / 2)]를 최종 확률로 계산
+                    // 회피 영향력을 절반으로 줄여서 명중률을 보정함
+                    const finalHitChance = sHit - (tEva / 2);
+                    if (hitRoll <= finalHitChance) {
+                        isHit = true;
+                    }
+                }
+
+                // 공격 실패 시 처리
+                if (!isHit) {
+                    const failType = hitRoll > sHit ? '실패' : '회피';
+                    return log(`💨 ${src} → ${n}: [Hit:${hitRoll}/Final:${Math.max(0, sHit-(tEva/2))}%] ${failType}!`, 'log-dice');
+                }
                 
                 // 1. 데미지 계산 (난수 선적용 -> 치명타 후적용)
                 let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
