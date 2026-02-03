@@ -12,16 +12,16 @@ let currentBattleData = null;
 io.on('connection', (socket) => {
     console.log('사용자 접속');
 
+    // 접속하자마자 최신 데이터를 보내줌
     if (currentBattleData) {
-        socket.emit('update_from_server', currentBattleData);
+        socket.emit('battleUpdate', currentBattleData);
     }
 
-    // 이름을 'update_data'로 일치시킵니다.
-    socket.on('update_data', (data) => { 
+    // 누군가 데이터를 바꾸면 (이벤트명: battleUpdate)
+    socket.on('battleUpdate', (data) => {
         currentBattleData = data;
-        // 마스터 화면뿐만 아니라 관전자 화면에도 즉시 반영되도록 io.emit 사용을 권장합니다.
-        // 만약 본인(마스터) 화면이 중복 갱신되는 게 싫다면 기존처럼 socket.broadcast.emit을 쓰셔도 됩니다.
-        io.emit('update_from_server', data); 
+        // 나를 포함한 '모든' 접속자에게 배고픔(데이터)을 전달
+        io.emit('battleUpdate', data); 
     });
 
     socket.on('disconnect', () => {
