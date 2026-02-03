@@ -415,53 +415,60 @@
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
                 
-                // [수정] 명중 여부 판단
+                // [판정] 명중 여부 (회피 0이면 무조건 명중)
                 let isHit = false;
                 const hitRoll = Math.floor(Math.random() * 100) + 1;
-
-                if (sHit >= 100) {
-                    // 1. 명중 100 이상이면 무조건 성공 (절대 명중)
+    
+                if (sHit >= 100 || tEva <= 0) {
                     isHit = true;
                 } else {
-                    // 2. 명중 100 미만일 때: [내 명중 - (상대 회피 / 2)]를 최종 확률로 계산
-                    // 회피 영향력을 절반으로 줄여서 명중률을 보정함
-                    const finalHitChance = sHit - (tEva / 2);
-                    if (hitRoll <= finalHitChance) {
-                        isHit = true;
-                    }
+                    const finalChance = sHit + (100 - tEva); 
+                    if (hitRoll <= finalChance) isHit = true;
                 }
-
-                // 공격 실패 시 처리
+    
+                // 공격 실패 시: 실패 원인을 분석해서 로그 출력
                 if (!isHit) {
-                    const failType = hitRoll > sHit ? '실패' : '회피';
-                    return log(`💨 ${src} → ${n}: [Hit:${hitRoll}/Final:${Math.max(0, sHit-(tEva/2))}%] ${failType}!`, 'log-dice');
+                    let failMsg = '';
+                    
+                    // 판정 1: 내 명중 수치(sHit)보다 주사위가 높게 나왔을 때 (내가 못 맞춤)
+                    if (hitRoll > sHit) {
+                        failMsg = `[Dice:${hitRoll}] 공격에 실패했습니다. (Miss)`;
+                    } 
+                    // 판정 2: 내 명중은 성공했지만, 상대 회피 판정 때문에 막혔을 때 (상대가 피함)
+                    else {
+                        failMsg = `[Dice:${hitRoll}] 상대가 회피했습니다. (Evade)`;
+                    }
+                    
+                    return log(`💨 ${src} → ${n}: ${failMsg}`, 'log-dice');
                 }
                 
-                // 1. 데미지 계산 (난수 선적용 -> 치명타 후적용)
+                // --- 공격 성공 시 데미지 계산 시작 ---
+                const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
+                const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
+                
                 let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
                 d *= (0.9 + Math.random() * 0.2);
+                
                 const critRoll = Math.floor(Math.random() * 100) + 1;
                 let isCrit = false; 
                 if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 
-                // 2. 자연수 변환 및 HP 적용
                 const finalD = Math.round(d);
                 const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - finalD);
                 tC.querySelector('.hp').value = nextHp;
     
-                // 3. [추가] 피격 카드 흔들림 효과
                 if(finalD > 0) {
                     tC.classList.remove('shake-card');
-                    void tC.offsetWidth; // 애니메이션 리셋
+                    void tC.offsetWidth;
                     tC.classList.add('shake-card');
                     setTimeout(() => tC.classList.remove('shake-card'), 400);
                 }
     
-                // 4. 로그 출력
                 log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
                 if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 
                 updateHP(tId);
+    
             } else {
                 // 치료 로직
                 const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
