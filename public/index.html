@@ -516,11 +516,20 @@
         const area = document.getElementById('skillListArea');
         if (!area) return;
     
-        // 1. 현재 어떤 그룹이 열려(block)있는지 상태를 저장
+        // 1. 현재 어떤 그룹이 열려있는지 상태 저장 (방어 코드 추가)
         const openStates = {};
-        document.querySelectorAll('.skill-group-content').forEach(el => {
-            openStates[el.id] = el.style.display;
-        });
+        const existingGroups = document.querySelectorAll('.skill-group-content');
+        if (existingGroups.length > 0) {
+            existingGroups.forEach(el => {
+                openStates[el.id] = el.style.display;
+            });
+        }
+    
+        // 데이터가 없으면 영역을 비우고 종료
+        if (!skillData || skillData.length === 0) {
+            area.innerHTML = "";
+            return;
+        }
     
         const grouped = skillData.reduce((acc, s) => { 
             if(!acc[s.owner]) acc[s.owner] = []; 
@@ -530,7 +539,6 @@
     
         area.innerHTML = Object.keys(grouped).map(owner => {
             const safeId = "skill_group_" + owner.replace(/\s+/g, '_');
-            // 2. 이전에 열려있었으면 열린 상태로, 기록이 없으면(새 캐릭터 등) 기본은 닫힘(none) 처리
             const currentDisplay = openStates[safeId] || 'none';
             
             return `
@@ -544,15 +552,15 @@
                     
                     <div id="${safeId}" class="skill-group-content" style="display:${currentDisplay};">
                         ${grouped[owner].map((s, idx) => {
-                            const formattedDesc = s.desc.replace(/\n/g, '<br>');
-                            // 스킬 타입에 따른 클래스 결정 (공백 제거)
+                            // 설명글이 없을 경우 대비
+                            const descText = s.desc || "";
+                            const formattedDesc = descText.replace(/\n/g, '<br>');
                             const typeClass = "sk-type-" + (s.type || "default").replace(/\s+/g, '');
-                            // 유일 술식일 경우 이름 앞에 아이콘 추가
                             const isUltimate = s.type === '유일술식' ? '🔥 ' : '';
     
                             return `
                             <div class="${typeClass}" style="padding:10px 12px; border-bottom:1px solid #f1f1f1; font-size:11px; position:relative; margin:2px 0;">
-                                <b style="color:#6A5ACD; font-size:12px;">[${s.type}] ${s.name}</b>
+                                <b style="color:#6A5ACD; font-size:12px;">${isUltimate}[${s.type}] ${s.name}</b>
                                 <button class="admin-control" onclick="deleteSkill('${owner}', ${idx})" 
                                         style="position:absolute; top:8px; right:8px; color:#ff8787; background:none; border:none; font-size:14px;">×</button>
                                 <div style="color:#555; margin-top:6px; line-height:1.6;">${formattedDesc}</div>
