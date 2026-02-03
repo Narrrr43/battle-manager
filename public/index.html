@@ -792,12 +792,51 @@
             broadcastData();
         }
     }    
-    function broadcastData() { if(isMaster) socket.emit('battleUpdate', { round, statusTypes, itemTypes, skillData, htmlP: document.getElementById('playerList').innerHTML, htmlE: document.getElementById('enemyList').innerHTML, log: document.getElementById('logArea').innerHTML }); }
+    // [마스터용] 데이터 전송
+    function broadcastData() { 
+        if(isMaster) {
+            socket.emit('battleUpdate', { 
+                round: round, 
+                statusTypes: statusTypes, 
+                itemTypes: itemTypes, 
+                skillData: skillData, // 이름 확인!
+                htmlP: document.getElementById('playerList').innerHTML, 
+                htmlE: document.getElementById('enemyList').innerHTML, 
+                log: document.getElementById('logArea').innerHTML 
+            }); 
+        }
+    }
+
+    // [관전자용] 데이터 수신 및 화면 갱신
     socket.on('battleUpdate', (d) => {
         if(!isMaster) {
-            round = d.round; document.getElementById('roundNum').textContent = round; statusTypes = d.statusTypes; itemTypes = d.itemTypes; skillData = d.skillData || [];
-            document.getElementById('playerList').innerHTML = d.htmlP; document.getElementById('enemyList').innerHTML = d.htmlE; document.getElementById('logArea').innerHTML = d.log;
-            renderStatusTypeList(); renderItemTypeList(); renderSkillList();
+            // 1. 기본 수치 업데이트
+            round = d.round; 
+            const roundEl = document.getElementById('roundNum');
+            if(roundEl) roundEl.textContent = round; 
+    
+            // 2. 데이터 동기화
+            statusTypes = d.statusTypes || []; 
+            itemTypes = d.itemTypes || []; 
+            skillData = d.skillData || []; // 마스터가 보낸 이름과 똑같이!
+    
+            // 3. HTML 영역 통째로 복사 (유닛 카드 등)
+            const pList = document.getElementById('playerList');
+            const eList = document.getElementById('enemyList');
+            const lArea = document.getElementById('logArea');
+    
+            if(pList) pList.innerHTML = d.htmlP; 
+            if(eList) eList.innerHTML = d.htmlE; 
+            if(lArea) lArea.innerHTML = d.log;
+    
+            // 4. 리스트 다시 그리기 (함수 내부 오류 방지를 위해 try-catch 권장)
+            try {
+                if(typeof renderStatusTypeList === 'function') renderStatusTypeList();
+                if(typeof renderItemTypeList === 'function') renderItemTypeList();
+                if(typeof renderSkillList === 'function') renderSkillList();
+            } catch(e) {
+                console.error("렌더링 중 오류 발생:", e);
+            }
         }
     });
 </script>
