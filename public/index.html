@@ -799,65 +799,41 @@
     
             broadcastData();
         }
-    }    
-    // [마스터용] 데이터 전송
+    }  
+    
     function broadcastData() { 
         if(isMaster) {
             socket.emit('battleUpdate', { 
-                round: round, 
-                statusTypes: statusTypes, 
-                itemTypes: itemTypes, 
-                skillData: skillData, // 이름 확인!
+                round,
+                // 데이터는 보내두되, 화면은 HTML 통째로 전송하는 방식 유지
+                skillData, 
                 htmlP: document.getElementById('playerList').innerHTML, 
                 htmlE: document.getElementById('enemyList').innerHTML, 
+                htmlS: document.getElementById('skillListArea').innerHTML, // 스킬창도 HTML로 직접 전송
                 log: document.getElementById('logArea').innerHTML 
             }); 
         }
     }
 
-    // [관전자용] 데이터 수신 및 화면 갱신
     socket.on('battleUpdate', (d) => {
-        if(!isMaster) {
-            console.log("데이터 수신됨:", d); // 데이터가 오는지 콘솔(F12)에서 확인용
-    
-            // 1. 라운드 업데이트
-            if (d.round !== undefined) {
-                round = d.round;
-                const rNum = document.getElementById('roundNum');
-                if(rNum) rNum.textContent = round;
-            }
-    
-            // 2. 데이터 저장 (기존 데이터 보존)
-            statusTypes = d.statusTypes || statusTypes || [];
-            itemTypes = d.itemTypes || itemTypes || [];
-            skillData = d.skillData || [];
-    
-            // 3. HTML 영역 업데이트 (유닛 카드 등)
-            // 화면이 비어있다면 이 ID들이 실제 HTML에 있는지 꼭 확인해야 합니다!
-            const areas = {
-                'playerList': d.htmlP,
-                'enemyList': d.htmlE,
-                'logArea': d.log
-            };
-    
-            for (const [id, html] of Object.entries(areas)) {
-                const el = document.getElementById(id);
-                if (el && html !== undefined) {
-                    el.innerHTML = html;
-                } else if (!el) {
-                    console.warn(`경고: ID가 '${id}'인 요소를 찾을 수 없습니다.`);
-                }
-            }
-    
-            // 4. 스킬/상태/아이템 리스트 렌더링
-            // 화면에 유닛들이 그려진 '후'에 실행되도록 보장합니다.
-            setTimeout(() => {
-                if(typeof renderStatusTypeList === 'function') renderStatusTypeList();
-                if(typeof renderItemTypeList === 'function') renderItemTypeList();
-                if(typeof renderSkillList === 'function') renderSkillList();
-            }, 50);
+    if(!isMaster) {
+        // 라운드 수치 업데이트
+        if(d.round !== undefined) {
+            round = d.round;
+            document.getElementById('roundNum').textContent = round;
         }
-    });
+
+        // 스킬 데이터 동기화 (내부 연산용으로만 유지)
+        skillData = d.skillData || [];
+
+        // [핵심] 마스터가 만든 화면을 그대로 박제함
+        // 관전자 페이지에서 직접 그리는(render) 과정을 생략해서 오류를 원천 차단합니다.
+        document.getElementById('playerList').innerHTML = d.htmlP; 
+        document.getElementById('enemyList').innerHTML = d.htmlE; 
+        document.getElementById('skillListArea').innerHTML = d.htmlS; // 마스터가 접고 펴놓은 상태 그대로 전송됨
+        document.getElementById('logArea').innerHTML = d.log;
+    }
+});
 </script>
 </body>
 </html>
