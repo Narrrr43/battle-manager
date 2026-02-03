@@ -369,7 +369,7 @@
             const stC = div.querySelector(`#unitActiveStatus_${id}`);
             s.activeStatus.forEach(st => {
                 const b = document.createElement('div'); b.className = 'status-badge';
-                b.innerHTML = `<span>${st.name}${st.remainTurn == 0 ? '(영구)': '('+st.remainTurn+'T)'}</span><div><input type="number" value="${st.stacks}" class="st-stack" data-stat="${st.stat}" data-power="${st.power}" data-remain="${st.remainTurn}" onchange="broadcastData()"> <b onclick="if(isMaster){this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
+                b.innerHTML = `<span>${st.name}${st.remainTurn == 0 ? '(영구)': '('+st.remainTurn+'T)'}</span><div><input type="number" value="${st.stacks}" class="st-stack" data-stat="${st.stat}" data-power="${st.power}" data-remain="${st.remainTurn}" onchange="broadcastData()"> <b onclick="if{this.parentNode.parentNode.remove(); broadcastData();}" style="color:red; cursor:pointer;">×</b></div>`;
                 stC.appendChild(b);
             });
         }
@@ -752,7 +752,7 @@
         div.innerHTML = `<span>${name}${turn == 0 ? '(영구)' : '('+turn+'T)'}</span>
             <div>
                 <input type="number" value="1" class="st-stack" data-stat="${stat}" data-power="${power}" data-remain="${turn}" onchange="broadcastData()"> 
-                <b onclick="if(isMaster){this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('unitCard_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
+                <b onclick="if{this.parentNode.parentNode.remove(); refreshStatusEffects(document.getElementById('unitCard_${id}')); broadcastData();}" style="color:red; cursor:pointer;">×</b>
             </div>`;
         
         c.appendChild(div);
