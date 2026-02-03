@@ -259,11 +259,18 @@
                 logHtml: document.getElementById('logArea').innerHTML,
                 statusTypes: statusTypes,
                 itemTypes: itemTypes,
+                skillData: typeof skillData !== 'undefined' ? skillData : [], // 스킬 데이터 추가
                 units: []
             };
+            
             document.querySelectorAll('.char-card').forEach(card => {
-                const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
-                const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => {
+                const stats = {}; 
+                card.querySelectorAll('.stat-grid input').forEach(i => { 
+                    if(i.className) stats[i.className] = i.value; 
+                });
+                
+                const activeStatus = []; 
+                card.querySelectorAll('.status-badge').forEach(b => {
                     const st = b.querySelector('.st-stack');
                     activeStatus.push({ 
                         name: b.querySelector('span').textContent.split('(')[0], 
@@ -271,6 +278,7 @@
                         stacks: st.value, remainTurn: st.dataset.remain 
                     });
                 });
+    
                 data.units.push({
                     type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS') ? 'player' : 'enemy',
                     name: card.querySelector('.name-input').value,
@@ -282,24 +290,36 @@
                     isEnded: card.classList.contains('turn-ended')
                 });
             });
+    
+            // 서버가 인식하는 이벤트 이름으로 전송
             socket.emit('battleUpdate', data);
         }
     
         // 서버에서 데이터를 받았을 때 화면 갱신
         socket.on('battleUpdate', (data) => {
+            if(!data) return;
+    
             round = data.round;
             document.getElementById('roundNum').textContent = round;
             document.getElementById('logArea').innerHTML = data.logHtml;
             statusTypes = data.statusTypes || [];
             itemTypes = data.itemTypes || [];
-            renderStatusTypeList(); renderItemTypeList();
+            skillData = data.skillData || []; // 스킬 데이터 수신
+    
+            renderStatusTypeList(); 
+            renderItemTypeList();
             
-            // 화면 초기화 후 재생성
+            // 스킬 리스트 렌더링 (함수가 존재할 때만 실행)
+            if(typeof renderSkillList === 'function') renderSkillList();
+            
+            // 화면 초기화 후 유닛 재생성
             document.getElementById('playerList').innerHTML = '';
             document.getElementById('enemyList').innerHTML = '';
-            data.units.forEach(u => createUnit(u.type, u));
+            if(data.units) {
+                data.units.forEach(u => createUnit(u.type, u));
+            }
         });
-    
+        
     // [캐릭터 내부 추가피해 전용 실행 함수 - 원본 유지]
     function executeExtraDamage(id) {
         const card = document.getElementById(`unitCard_${id}`);
