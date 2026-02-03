@@ -454,9 +454,32 @@
                 if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 
                 const finalD = Math.round(d);
+                const tHpEl = tC.querySelector('.hp'); // 대상의 HP 엘리먼트
                 const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - finalD);
                 tC.querySelector('.hp').value = nextHp;
-    
+
+                // A. 반사 로직 (공격받은 대상 tC에게 '반사' 상태이상이 있는지 확인)
+                const reflectState = getStatus(tC, '반사'); // 상태이상 수치를 가져오는 함수 (가칭)
+                if (reflectState > 0) {
+                    const reflectD = Math.round(finalD * (reflectState / 100));
+                    const sHpEl = sC.querySelector('.hp');
+                    const sNextHp = Math.max(0, parseFloat(sHpEl.value) - reflectD);
+                    sHpEl.value = sNextHp;
+                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해`, 'log-dice');
+                    updateHP(src.split('_')[1]); // 공격자 HP UI 업데이트
+                }
+                
+                // B. 흡혈 로직 (공격한 본인 sC에게 '흡혈' 상태이상이 있는지 확인)
+                const drainState = getStatus(sC, '흡혈');
+                if (drainState > 0) {
+                    const drainH = Math.round(finalD * (drainState / 100));
+                    const sHpEl = sC.querySelector('.hp');
+                    const sMaxHp = parseFloat(sC.querySelector('.max').value);
+                    sHpEl.value = Math.min(sMaxHp, parseFloat(sHpEl.value) + drainH);
+                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복`, 'log-heal');
+                    updateHP(src.split('_')[1]);
+                }
+                
                 if(finalD > 0) {
                     tC.classList.remove('shake-card');
                     void tC.offsetWidth;
@@ -470,6 +493,12 @@
                 updateHP(tId);
     
             } else {
+
+                // 치료 대상(tC)에게 '치유불가' 상태이상이 있는지 확인
+                if (getStatus(tC, '치유불가')) { 
+                return log(`🚫 ${n}: 치유불가 상태입니다!`, 'log-dice');
+                }
+                
                 // 치료 로직
                 const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
                 let h = (((maxHp * 0.33) / 80 * eff) + (intel * 0.2));
@@ -486,6 +515,24 @@
         broadcastData();
     }
 
+    function getStatus(card, stateName) {
+        let powerValue = 0;
+        const badges = card.querySelectorAll('.status-badge');
+        badges.forEach(badge => {
+            // 배지의 텍스트(예: "데미지 반사(3T)")를 가져옵니다.
+            const fullText = badge.querySelector('span').textContent;
+            
+            // stateName(예: "반사")이 전체 이름에 포함되어 있는지 확인
+            if (fullText.includes(stateName)) {
+                const stInput = badge.querySelector('.st-stack');
+                const power = parseFloat(stInput.dataset.power) || 0;
+                const stacks = parseInt(stInput.value) || 1;
+                powerValue = power * stacks; 
+            }
+        });
+        return powerValue;
+    }
+        
     function updateHP(id, b = true) {
         // 1. 유닛 카드를 찾습니다 (두 가지 ID 형식을 모두 체크하도록 설계)
         const c = document.getElementById(`unitCard_${id}`) || document.getElementById(`char_${id}`);
