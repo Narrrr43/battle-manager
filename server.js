@@ -8,20 +8,20 @@ app.use(express.static('public'));
 
 let currentBattleData = null;
 
-// [서버 코드 수정본]
 io.on('connection', (socket) => {
     console.log('사용자 접속');
 
-    // 접속하자마자 최신 데이터를 보내줌
     if (currentBattleData) {
         socket.emit('battleUpdate', currentBattleData);
     }
 
-    // 누군가 데이터를 바꾸면 (이벤트명: battleUpdate)
     socket.on('battleUpdate', (data) => {
         currentBattleData = data;
-        // 나를 포함한 '모든' 접속자에게 배고픔(데이터)을 전달
-        io.emit('battleUpdate', data); 
+        
+        // [수정 추천] io.emit 대신 socket.broadcast.emit 사용
+        // 마스터(본인)에게는 다시 보내지 않고, 관전자들에게만 전송합니다.
+        // 이렇게 해야 마스터가 입력 중에 화면이 리셋되는 걸 막을 수 있습니다.
+        socket.broadcast.emit('battleUpdate', data); 
     });
 
     socket.on('disconnect', () => {
