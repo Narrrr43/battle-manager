@@ -119,7 +119,6 @@
 </head>
 <body onclick="closeMenus()" class="is-viewer">
 
-<div id="masterBadge" class="viewer-only" onclick="askMasterPassword()">👀 관전자 모드 (인증하려면 클릭)</div>
 <div class="overlay" id="overlay" onclick="closeAllModals()"></div>
 
 <div id="statusManagerMenu" class="modal">
@@ -251,12 +250,56 @@
 
 <script>
     const socket = io();
-    const MASTER_PW = "qazplm10110925";
-    const isMaster = true; let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = []; let skillData = [];
+    let unitIdx = 0; let round = 1; let statusTypes = []; let itemTypes = [];
     let selections = { atkSrc: "", atkTar: [], healSrc: "", healTar: [], itemSel: "", itemUser: "", skillOwner: "" };
     let turnList = []; let currentTurnPointer = -1;
 
-    function askMasterPassword() { const pw = prompt("비밀번호:"); if (pw === MASTER_PW) { isMaster = true; document.body.classList.remove('is-viewer'); document.getElementById('masterBadge').textContent = "👑 마스터 권한 활성화"; document.getElementById('masterBadge').className = "admin-only"; alert("인증 성공!"); broadcastData(); } }
+    function broadcastData() {
+            const data = {
+                round: round,
+                logHtml: document.getElementById('logArea').innerHTML,
+                statusTypes: statusTypes,
+                itemTypes: itemTypes,
+                units: []
+            };
+            document.querySelectorAll('.char-card').forEach(card => {
+                const stats = {}; card.querySelectorAll('.stat-grid input').forEach(i => { if(i.className) stats[i.className] = i.value; });
+                const activeStatus = []; card.querySelectorAll('.status-badge').forEach(b => {
+                    const st = b.querySelector('.st-stack');
+                    activeStatus.push({ 
+                        name: b.querySelector('span').textContent.split('(')[0], 
+                        stat: st.dataset.stat, power: st.dataset.power, 
+                        stacks: st.value, remainTurn: st.dataset.remain 
+                    });
+                });
+                data.units.push({
+                    type: card.closest('.side-panel').querySelector('h5').textContent.includes('PLAYERS') ? 'player' : 'enemy',
+                    name: card.querySelector('.name-input').value,
+                    init: card.querySelector('.init-input').value,
+                    stats: stats,
+                    activeStatus: activeStatus,
+                    isKO: card.classList.contains('is-ko'),
+                    isActive: card.classList.contains('active-turn'),
+                    isEnded: card.classList.contains('turn-ended')
+                });
+            });
+            socket.emit('sync_to_server', data);
+        }
+    
+        // 서버에서 데이터를 받았을 때 화면 갱신
+        socket.on('update_from_server', (data) => {
+            round = data.round;
+            document.getElementById('roundNum').textContent = round;
+            document.getElementById('logArea').innerHTML = data.logHtml;
+            statusTypes = data.statusTypes || [];
+            itemTypes = data.itemTypes || [];
+            renderStatusTypeList(); renderItemTypeList();
+            
+            // 화면 초기화 후 재생성
+            document.getElementById('playerList').innerHTML = '';
+            document.getElementById('enemyList').innerHTML = '';
+            data.units.forEach(u => createUnit(u.type, u));
+        });
     
     // [캐릭터 내부 추가피해 전용 실행 함수 - 원본 유지]
     function executeExtraDamage(id) {
@@ -801,32 +844,6 @@
         }
     }  
     
-    function broadcastData() { 
-        // if(isMaster) 이 줄을 지우고 내용만 남깁니다.
-        const dataToSync = { 
-            round, statusTypes, itemTypes, skillData,
-            htmlP: document.getElementById('playerList').innerHTML, 
-            htmlE: document.getElementById('enemyList').innerHTML, 
-            htmlS: document.getElementById('skillListArea').innerHTML,
-            log: document.getElementById('logArea').innerHTML 
-        };
-        socket.emit('battleUpdate', dataToSync); 
-    }
-
-    socket.on('battleUpdate', (d) => {
-    // if(!isMaster) 이 조건문을 지워버리세요.
-    round = d.round; 
-    document.getElementById('roundNum').textContent = round;
-    statusTypes = d.statusTypes || [];
-    itemTypes = d.itemTypes || [];
-    skillData = d.skillData || [];
-
-    // 화면 동기화
-    document.getElementById('playerList').innerHTML = d.htmlP; 
-    document.getElementById('enemyList').innerHTML = d.htmlE; 
-    document.getElementById('skillListArea').innerHTML = d.htmlS; 
-    document.getElementById('logArea').innerHTML = d.log;
-});
 </script>
 </body>
 </html>
