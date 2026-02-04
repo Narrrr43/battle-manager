@@ -128,7 +128,7 @@
         <input type="text" id="msName" placeholder="효과 이름" style="padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
         <div style="display:flex; gap:4px;">
             <select id="msStat" style="flex:1.2; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
-                <option value="atk">공격력 %</option><option value="int">지능 %</option><option value="hit">명중률 %</option><option value="eva">회피율 %</option><option value="critR">치명타 확률 %</option><option value="critD">치명타 데미지 %</option><option value="dot">지속피해(MAX HP %)</option><option value="hot">지속회복(MAX HP %)</option><option value="skip">⛔ 행동 불가</option><option value="noheal">🚫 치유 불가</option><option value="reflect">🛡️ 데미지 반사</option><option value="drain">🩸 공격 시 흡혈</option><option value="none">✨ 특수 효과 (도발 등)</option>
+                <option value="atk">공격력 %</option><option value="int">지능 %</option><option value="hit">명중률 %</option><option value="eva">회피율 %</option><option value="critR">치명타 확률 %</option><option value="critD">치명타 데미지 %</option><option value="dot">지속피해(MAX HP %)</option><option value="hot">지속회복(MAX HP %)</option><option value="skip">⛔ 행동 불가</option><option value="noheal">🚫 치유 불가</option><option value="reflect">🛡️ 데미지 반사</option><option value="drain">🩸 공격 시 흡혈</option><option value="none">✨ 특수 효과 (도발 등)</option><option value="none">피격흡수</option>
             </select>
             <input type="number" id="msPower" placeholder="수치" style="flex:0.8; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
         </div>
@@ -279,7 +279,7 @@
                 tC.querySelector('.hp').value = Math.max(0, curHp - finalDmg).toFixed(1);
                 log(`💥 ${srcName} → ${tarName}: <b>${finalDmg.toFixed(1)}</b> 추가 피해 (공격력 ${percent}%)`, 'log-atk');
                 updateHP(tId);
-                if(parseFloat(tC.querySelector('.hp').value) <= 0) log(`💀 ${tarName} 사망!`, 'log-round-box');
+                if(parseFloat(tC.querySelector('.hp').value) <= 0) log(`💀 ${tarName} 사망했습니다.`, 'log-round-box');
             }
         });
         broadcastData();
@@ -354,10 +354,10 @@
                 
                 if(type === 'dot') { 
                     card.querySelector('.hp').value = Math.max(0, currentHp - effectVal); 
-                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해!`, 'log-atk'); 
+                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해를 입었습니다.`, 'log-atk'); 
                 } else { 
                     card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal); 
-                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복!`, 'log-heal'); 
+                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복했습니다.`, 'log-heal'); 
                 }
                 updateHP(id, false);
             }
@@ -473,7 +473,7 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sNextHp = Math.max(0, parseFloat(sHpEl.value) - reflectD);
                     sHpEl.value = sNextHp;
-                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해`, 'log-dice');
+                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해를 반사합니다.`, 'log-dice');
                     updateHP(src.split('_')[1]); // 공격자 HP UI 업데이트
                 }
                 
@@ -484,11 +484,9 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sMaxHp = parseFloat(sC.querySelector('.max').value);
                     sHpEl.value = Math.min(sMaxHp, parseFloat(sHpEl.value) + drainH);
-                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복`, 'log-heal');
+                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복했습니다.`, 'log-heal');
                     updateHP(src.split('_')[1]);
                 }
-
-                // ... (데미지 계산 및 상대 HP 차감 로직 뒤)
 
                 // C. 피격 흡수 로직 (공격받은 대상 tC에게 '피격흡수' 상태이상이 있는지 확인)
                 const absorbPower = getStatus(tC, '피격흡수'); // '피격흡수'라는 단어가 포함된 배지 확인
@@ -501,7 +499,7 @@
                     const recoveredHp = Math.min(tMaxHp, parseFloat(tHpEl.value) + absorbH);
                     tHpEl.value = recoveredHp;
                 
-                    log(`🛡️ 흡수! ${n}이(가) 충격을 완화해 <b>${absorbH}</b> 회복`, 'log-heal');
+                    log(`🛡️ 흡수! ${n}이(가) 충격을 흡수해 <b>${absorbH}</b> 회복했습니다.`, 'log-heal');
                     // 피격자의 HP바를 다시 업데이트 (반사/흡혈과 별개로 피격자 본인 UI)
                     updateHP(tId); 
                 }
@@ -514,7 +512,7 @@
                 }
     
                 log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
-                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망!`, 'log-round-box');
+                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망했습니다.`, 'log-round-box');
                 
                 updateHP(tId);
     
@@ -522,7 +520,7 @@
 
                 // 치료 대상(tC)에게 '치유불가' 상태이상이 있는지 확인
                 if (getStatus(tC, '치유불가')) { 
-                return log(`🚫 ${n}: 치유불가 상태입니다!`, 'log-dice');
+                return log(`🚫 ${n}: 치유불가 상태입니다.`, 'log-dice');
                 }
                 
                 // 치료 로직
