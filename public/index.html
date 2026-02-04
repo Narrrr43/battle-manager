@@ -222,13 +222,13 @@
         </div>
     </div>
 
-    <div class="control-row" style="margin-top: 0px !important; margin-bottom: 2px !important; align-self: flex-start; width: 100%;">
-        <div class="control-box" style="width: 100%; border: 1px solid #ddd; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 5px 12px !important; height: auto; min-height: 60px; display: flex; flex-direction: column; justify-content: center;">
-            <h6 style="margin: 0 0 2px 0 !important; color: #d63031; font-weight: bold; display: flex; align-items: center; gap: 5px; font-size: 11px;">
+    <div class="control-row" style="margin-top: 0px !important; margin-bottom: 2px !important;">
+        <div class="control-box" style="width: 100%; border: 1px solid #ddd; background: #fff; padding: 8px 12px !important; display: flex; flex-direction: column; justify-content: center;">
+            <h6 style="margin: 0 0 4px 0 !important; color: #d63031; font-weight: bold; font-size: 11px;">
                 💥 FIXED DAMAGE SETTING
             </h6>
             
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
                     <span style="font-size: 11px; font-weight: bold; color: #666;">데미지:</span>
                     <input type="number" id="aoePercent" value="10" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 11px;">
@@ -250,20 +250,20 @@
         </div>
     </div>
     
-    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:5px; border-radius:10px; border:1px solid var(--border); margin-top: 0px !important; margin-bottom: 2px !important;">
+    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:5px; border-radius:10px; border:1px solid var(--border); margin-bottom: 2px !important;">
         <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:6px; font-size:11px;">⚙️ 상태이상 설정</button>
         <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:6px; font-size:11px;">💊 아이템 설정</button>
         <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:6px; font-size:11px;">👜 아이템 사용</button>
     </div>
     
-    <div style="display:flex; gap:5px; margin-top: 0px !important; margin-bottom: 5px !important;">
+    <div style="display:flex; gap:5px; margin-bottom: 5px !important;">
         <button class="admin-control" onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
         <button class="admin-control" onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
         <button class="admin-control" onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 리셋</button>
         <button onclick="toggleModal('skillMemoMenu', true)" style="flex:1; background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
     </div>
     
-    <div class="log-area" id="logArea" style="height: auto !important; min-height: 350px; flex-grow: 1; margin-top: 0px;"></div></div>
+    <div class="log-area" id="logArea" style="height: 350px !important;"></div>
 
 <div id="itemManagerMenu" class="modal">
     <h4 style="margin:0 0 10px 0;">💊 아이템 등록</h4>
