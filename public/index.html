@@ -114,6 +114,27 @@
         }
         /* 목록에 없는 기타 타입용 기본값 */
         .sk-type-default { border-left: 5px solid #2ecc71; }
+
+    /* 화면 흔들림 효과 애니메이션 */
+    @keyframes shake {
+      0% { transform: translate(1px, 1px) rotate(0deg); }
+      10% { transform: translate(-1px, -2px) rotate(-1deg); }
+      20% { transform: translate(-3px, 0px) rotate(1deg); }
+      30% { transform: translate(3px, 2px) rotate(0deg); }
+      40% { transform: translate(1px, -1px) rotate(1deg); }
+      50% { transform: translate(-1px, 2px) rotate(-1deg); }
+      60% { transform: translate(-3px, 1px) rotate(0deg); }
+      70% { transform: translate(3px, 1px) rotate(-1deg); }
+      80% { transform: translate(-1px, -1px) rotate(1deg); }
+      90% { transform: translate(1px, 2px) rotate(0deg); }
+      100% { transform: translate(1px, -2px) rotate(-1deg); }
+    }
+    
+    /* 이 클래스가 적용되면 흔들립니다 */
+    .battle-shake {
+      animation: shake 0.5s; /* 0.5초 동안 실행 */
+      animation-iteration-count: 1; /* 한 번만 실행 */
+    }
         
     </style>
 </head>
@@ -625,6 +646,17 @@
     }
 
     function executeAoE() {
+
+        const screen = document.getElementById('game-container'); 
+        if (screen) {
+            screen.classList.remove('battle-shake'); // 이전 효과 초기화
+            void screen.offsetWidth;                // 리플로우 강제 발생
+            screen.classList.add('battle-shake');    // 흔들림 시작
+            
+            // 0.5초 뒤에 클래스 제거 (CSS 애니메이션 시간과 맞춤)
+            setTimeout(() => screen.classList.remove('battle-shake'), 500);
+        }
+        
         const percent = parseFloat(document.getElementById('aoePercent').value) || 0;
         const statusName = document.getElementById('aoeStatusName').value.trim();
         const statusChance = parseFloat(document.getElementById('aoeStatusChance').value) || 0;
