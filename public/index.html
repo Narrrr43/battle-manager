@@ -114,27 +114,6 @@
         }
         /* 목록에 없는 기타 타입용 기본값 */
         .sk-type-default { border-left: 5px solid #2ecc71; }
-
-    /* 화면 흔들림 효과 애니메이션 */
-    @keyframes shake {
-      0% { transform: translate(1px, 1px) rotate(0deg); }
-      10% { transform: translate(-1px, -2px) rotate(-1deg); }
-      20% { transform: translate(-3px, 0px) rotate(1deg); }
-      30% { transform: translate(3px, 2px) rotate(0deg); }
-      40% { transform: translate(1px, -1px) rotate(1deg); }
-      50% { transform: translate(-1px, 2px) rotate(-1deg); }
-      60% { transform: translate(-3px, 1px) rotate(0deg); }
-      70% { transform: translate(3px, 1px) rotate(-1deg); }
-      80% { transform: translate(-1px, -1px) rotate(1deg); }
-      90% { transform: translate(1px, 2px) rotate(0deg); }
-      100% { transform: translate(1px, -2px) rotate(-1deg); }
-    }
-    
-    /* 이 클래스가 적용되면 흔들립니다 */
-    .battle-shake {
-      animation: shake 0.5s; /* 0.5초 동안 실행 */
-      animation-iteration-count: 1; /* 한 번만 실행 */
-    }
         
     </style>
 </head>
@@ -222,48 +201,30 @@
         </div>
     </div>
 
-    <div class="control-row" style="margin-top: 0px !important; margin-bottom: 2px !important;">
-        <div class="control-box" style="width: 100%; border: 1px solid #ddd; background: #fff; padding: 8px 12px !important; display: flex; flex-direction: column; justify-content: center;">
-            <h6 style="margin: 0 0 4px 0 !important; color: #d63031; font-weight: bold; font-size: 11px;">
-                💥 FIXED DAMAGE SETTING
-            </h6>
-            
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 11px; font-weight: bold; color: #666;">데미지:</span>
-                    <input type="number" id="aoePercent" value="10" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 11px;">
-                    <span style="font-size: 11px; color: #999;">%</span>
-                </div>
-    
-                <div style="display: flex; align-items: center; gap: 5px; border-left: 1px solid #eee; padding-left: 10px;">
-                    <span style="font-size: 11px; font-weight: bold; color: #666;">부가 효과:</span>
-                    <input type="text" id="aoeStatusName" placeholder="상태이상명" style="width: 70px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px;">
-                    <span style="font-size: 11px; font-weight: bold; color: #666;">확률:</span>
-                    <input type="number" id="aoeStatusChance" value="30" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 11px;">
-                    <span style="font-size: 11px; color: #999;">%</span>
-                </div>
-    
-                <button onclick="executeAoE()" style="background: #d63031; color: white; border: none; border-radius: 4px; padding: 4px 15px; font-weight: bold; cursor: pointer; font-size: 11px; box-shadow: 0 2px 0 #b32626;">
-                    🔥 EXECUTE CALAMITY
-                </button>
-            </div>
-        </div>
+    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:8px; border-radius:10px; border:1px solid var(--border);">
+        <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:8px; font-size:11px;">⚙️ 상태이상 설정</button>
+        <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:8px; font-size:11px;">💊 아이템 설정</button>
+        <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:8px; font-size:11px;">👜 아이템 사용</button>
     </div>
-    
-    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:5px; border-radius:10px; border:1px solid var(--border); margin-bottom: 2px !important;">
-        <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:6px; font-size:11px;">⚙️ 상태이상 설정</button>
-        <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:6px; font-size:11px;">💊 아이템 설정</button>
-        <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:6px; font-size:11px;">👜 아이템 사용</button>
-    </div>
-    
-    <div style="display:flex; gap:5px; margin-bottom: 5px !important;">
+
+    <div style="display:flex; gap:5px;">
         <button class="admin-control" onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
         <button class="admin-control" onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
         <button class="admin-control" onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 리셋</button>
-        <button onclick="toggleModal('skillMemoMenu', true)" style="flex:1; background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
+        <button onclick="toggleModal('skillMemoMenu', true)" style="flex:1.5; background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
+        <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
     </div>
-    
-    <div class="log-area" id="logArea" style="height: 350px !important;"></div>
+
+    <div class="log-area" id="logArea"></div>
+</div>
+
+<div class="side-panel">
+    <div class="panel-header" style="padding:10px; display:flex; justify-content:space-between; align-items:center;">
+        <h5 style="margin:0; color:var(--enemy-accent);">ENEMIES</h5>
+        <button class="admin-control" onclick="createUnit('enemy'); broadcastData();" style="background:var(--enemy-accent); color:white; padding:2px 8px;">+</button>
+    </div>
+    <div id="enemyList" class="char-scroll-area"></div>
+</div>
 
 <div id="itemManagerMenu" class="modal">
     <h4 style="margin:0 0 10px 0;">💊 아이템 등록</h4>
@@ -393,10 +354,10 @@
                 
                 if(type === 'dot') { 
                     card.querySelector('.hp').value = Math.max(0, currentHp - effectVal); 
-                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해를 입었습니다.`, 'log-atk'); 
+                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해!`, 'log-atk'); 
                 } else { 
                     card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal); 
-                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복합니다.`, 'log-heal'); 
+                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복!`, 'log-heal'); 
                 }
                 updateHP(id, false);
             }
@@ -512,7 +473,7 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sNextHp = Math.max(0, parseFloat(sHpEl.value) - reflectD);
                     sHpEl.value = sNextHp;
-                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해를 반사합니다.`, 'log-dice');
+                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해`, 'log-dice');
                     updateHP(src.split('_')[1]); // 공격자 HP UI 업데이트
                 }
                 
@@ -523,9 +484,11 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sMaxHp = parseFloat(sC.querySelector('.max').value);
                     sHpEl.value = Math.min(sMaxHp, parseFloat(sHpEl.value) + drainH);
-                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복합니다.`, 'log-heal');
+                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복`, 'log-heal');
                     updateHP(src.split('_')[1]);
                 }
+
+                // ... (데미지 계산 및 상대 HP 차감 로직 뒤)
 
                 // C. 피격 흡수 로직 (공격받은 대상 tC에게 '피격흡수' 상태이상이 있는지 확인)
                 const absorbPower = getStatus(tC, '피격흡수'); // '피격흡수'라는 단어가 포함된 배지 확인
@@ -538,7 +501,7 @@
                     const recoveredHp = Math.min(tMaxHp, parseFloat(tHpEl.value) + absorbH);
                     tHpEl.value = recoveredHp;
                 
-                    log(`🛡️ 흡수! ${n}이(가) 충격을 흡수해 <b>${absorbH}</b> 회복합니다.`, 'log-heal');
+                    log(`🛡️ 흡수! ${n}이(가) 충격을 완화해 <b>${absorbH}</b> 회복`, 'log-heal');
                     // 피격자의 HP바를 다시 업데이트 (반사/흡혈과 별개로 피격자 본인 UI)
                     updateHP(tId); 
                 }
@@ -550,8 +513,8 @@
                     setTimeout(() => tC.classList.remove('shake-card'), 400);
                 }
     
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해를 입혔습니다.`, isCrit ? 'log-atk shake-log' : 'log-atk');
-                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망했습니다.`, 'log-round-box');
+                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망!`, 'log-round-box');
                 
                 updateHP(tId);
     
@@ -572,7 +535,7 @@
                 tC.querySelector('.hp').value = Math.min(maxHp, curHp + finalH);
                 
                 updateHP(tId); 
-                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복했습니다.`, 'log-heal');
+                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복`, 'log-heal');
             }
         });
         broadcastData();
@@ -633,94 +596,6 @@
     
         // 5. 실시간 데이터 공유
         if(b) broadcastData();
-    }
-
-    function executeAoE() {
-        // [1] 화면 흔들림 연출 (이미 정의한 CSS .battle-shake 활용)
-        const screen = document.getElementById('game-container'); 
-        if (screen) {
-            screen.classList.remove('battle-shake');
-            void screen.offsetWidth; 
-            screen.classList.add('battle-shake');
-            setTimeout(() => screen.classList.remove('battle-shake'), 500);
-        }
-    
-        const percent = parseFloat(document.getElementById('aoePercent').value) || 0;
-        const statusName = document.getElementById('aoeStatusName').value.trim();
-        const statusChance = parseFloat(document.getElementById('aoeStatusChance').value) || 0;
-        
-        const src = selections.atkSrc;
-        const tars = selections.atkTar;
-        const sC = findCardByName(src);
-        
-        if (!sC) return alert("공격 주체를 선택해주세요!");
-        if (tars.length === 0) return alert("대상을 선택하세요!");
-    
-        if (!confirm(`${src}의 광역 공격을 발동합니까?`)) return;
-    
-        let totalReflectedD = 0;
-        let totalDrainedH = 0;
-        const drainPower = getStatus(sC, '흡혈');
-    
-        tars.forEach(n => {
-            const tC = findCardByName(n);
-            if (!tC || tC.classList.contains('is-ko')) return;
-    
-            const tId = tC.id.split('_')[1];
-            const maxHp = parseFloat(tC.querySelector('.max').value);
-            
-            // 데미지 적용
-            const damage = Math.round(maxHp * (percent / 100));
-            const curHpEl = tC.querySelector('.hp');
-            curHpEl.value = Math.max(0, parseFloat(curHpEl.value) - damage);
-            
-            // 반사 & 흡혈 계산
-            const reflectPower = getStatus(tC, '반사');
-            if (reflectPower > 0) totalReflectedD += Math.round(damage * (reflectPower / 100));
-            if (drainPower > 0) totalDrainedH += Math.round(damage * (drainPower / 100));
-    
-            // [2] 상태이상 부여 수정: 결산 로직(finishCurrentTurn)과 type 일치화
-            if (statusName && statusChance > 0) {
-                const roll = Math.floor(Math.random() * 100) + 1;
-                if (roll <= statusChance) {
-                    let statCode = 'none';
-                    
-                    // 이름에 따라 'dot'(피해) 또는 'hot'(회복) 코드를 정확히 할당
-                    if(statusName.includes('도트') || statusName.includes('피해') || statusName.includes('독') || statusName.includes('출혈')) {
-                        statCode = 'dot';
-                    } else if(statusName.includes('회복') || statusName.includes('재생')) {
-                        statCode = 'hot';
-                    } else if(statusName.includes('행동') || statusName.includes('기절')) {
-                        statCode = 'skip';
-                    } else if(statusName.includes('치유') || statusName.includes('낙인')) {
-                        statCode = 'healBlock';
-                    }
-                    
-                    // 파워를 5(5%)로 설정하여 전달 (결산 로직에서 %로 계산됨)
-                    addStatusToUnit(tId, statusName, statCode, 5, 3);
-                }
-            }
-    
-            // 개별 유닛 흔들림
-            tC.classList.remove('shake-card');
-            void tC.offsetWidth;
-            tC.classList.add('shake-card');
-            updateHP(tId, false);
-        });
-    
-        // 공격자 결과 적용
-        const sHpEl = sC.querySelector('.hp');
-        const sMaxHp = parseFloat(sC.querySelector('.max').value);
-        const sId = sC.id.split('_')[1];
-        let finalNetChange = totalDrainedH - totalReflectedD;
-        sHpEl.value = Math.max(0, Math.min(sMaxHp, parseFloat(sHpEl.value) + finalNetChange));
-    
-        if (totalReflectedD > 0) log(`🔄 반사 피해: ${totalReflectedD}`, 'log-dice');
-        if (totalDrainedH > 0) log(`🩸 흡혈 회복: ${totalDrainedH}`, 'log-heal');
-        log(`🔥 <b>[광역기]</b> ${src} → ${tars.length}명에게 ${percent}% 피해!`, 'log-round-box');
-        
-        updateHP(sId, false);
-        broadcastData();
     }
     
     // [신규 스킬 메모 기능 로직]
