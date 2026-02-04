@@ -645,17 +645,15 @@
     }
 
     function executeAoE() {
-
+        // [1] 화면 흔들림 연출 (이미 정의한 CSS .battle-shake 활용)
         const screen = document.getElementById('game-container'); 
         if (screen) {
-            screen.classList.remove('battle-shake'); // 이전 효과 초기화
-            void screen.offsetWidth;                // 리플로우 강제 발생
-            screen.classList.add('battle-shake');    // 흔들림 시작
-            
-            // 0.5초 뒤에 클래스 제거 (CSS 애니메이션 시간과 맞춤)
+            screen.classList.remove('battle-shake');
+            void screen.offsetWidth; 
+            screen.classList.add('battle-shake');
             setTimeout(() => screen.classList.remove('battle-shake'), 500);
         }
-        
+    
         const percent = parseFloat(document.getElementById('aoePercent').value) || 0;
         const statusName = document.getElementById('aoeStatusName').value.trim();
         const statusChance = parseFloat(document.getElementById('aoeStatusChance').value) || 0;
@@ -680,40 +678,46 @@
             const tId = tC.id.split('_')[1];
             const maxHp = parseFloat(tC.querySelector('.max').value);
             
-            // 1. 데미지 적용
+            // 데미지 적용
             const damage = Math.round(maxHp * (percent / 100));
             const curHpEl = tC.querySelector('.hp');
             curHpEl.value = Math.max(0, parseFloat(curHpEl.value) - damage);
             
-            // 2. 반사 & 흡혈 누적
+            // 반사 & 흡혈 계산
             const reflectPower = getStatus(tC, '반사');
             if (reflectPower > 0) totalReflectedD += Math.round(damage * (reflectPower / 100));
             if (drainPower > 0) totalDrainedH += Math.round(damage * (drainPower / 100));
     
-            // 3. 상태이상 확률 부여 (마스터님의 addStatusToUnit 활용)
+            // [2] 상태이상 부여 수정: 결산 로직(finishCurrentTurn)과 type 일치화
             if (statusName && statusChance > 0) {
                 const roll = Math.floor(Math.random() * 100) + 1;
                 if (roll <= statusChance) {
-                    // 이름에 따른 시스템 stat 코드 매칭 (필요에 따라 추가하세요)
                     let statCode = 'none';
-                    if(statusName.includes('도트')) statCode = 'dot';
-                    else if(statusName.includes('치유')) statCode = 'healBlock';
-                    else if(statusName.includes('행동')) statCode = 'skip';
-                    else if(statusName.includes('회복')) statCode = 'hot';
                     
-                    // addStatusToUnit(id, 이름, 스탯코드, 파워, 지속턴)
-                    // 파워 5, 지속 3턴을 기본값으로 설정했습니다.
+                    // 이름에 따라 'dot'(피해) 또는 'hot'(회복) 코드를 정확히 할당
+                    if(statusName.includes('도트') || statusName.includes('피해') || statusName.includes('독') || statusName.includes('출혈')) {
+                        statCode = 'dot';
+                    } else if(statusName.includes('회복') || statusName.includes('재생')) {
+                        statCode = 'hot';
+                    } else if(statusName.includes('행동') || statusName.includes('기절')) {
+                        statCode = 'skip';
+                    } else if(statusName.includes('치유') || statusName.includes('낙인')) {
+                        statCode = 'healBlock';
+                    }
+                    
+                    // 파워를 5(5%)로 설정하여 전달 (결산 로직에서 %로 계산됨)
                     addStatusToUnit(tId, statusName, statCode, 5, 3);
                 }
             }
     
+            // 개별 유닛 흔들림
             tC.classList.remove('shake-card');
             void tC.offsetWidth;
             tC.classList.add('shake-card');
             updateHP(tId, false);
         });
     
-        // 4. 공격자 결과 적용
+        // 공격자 결과 적용
         const sHpEl = sC.querySelector('.hp');
         const sMaxHp = parseFloat(sC.querySelector('.max').value);
         const sId = sC.id.split('_')[1];
