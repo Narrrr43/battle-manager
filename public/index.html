@@ -190,13 +190,6 @@
             <input type="number" id="diceSuccess" placeholder="성공값" style="width:100%; text-align:center; margin-bottom:4px; padding:4px; border:1px solid #ddd; border-radius:4px;">
             <button class="btn-action" style="background:var(--dice-accent);" onclick="rollDice()">ROLL</button>
         </div>
-        <div class="control-box" style="margin-top: 10px; padding: 10px; border: 1px solid #444; background: #222; color: white;">
-            <span style="color: #ff4444; font-weight: bold;">[광역기 설정]</span><br>
-            데미지: <input type="number" id="aoePercent" value="10" style="width: 40px;"> % | 
-            상태이상: <input type="text" id="aoeStatusName" placeholder="도트딜" style="width: 70px;"> 
-            확률: <input type="number" id="aoeStatusChance" value="30" style="width: 40px;"> %
-            <button onclick="executeAoE()" style="background: #880000; color: white; cursor: pointer; margin-left: 5px;">🔥 광역 발동</button>
-        </div>
         <div class="control-box">
             <h6 style="margin:0 0 6px 0; color:var(--heal-accent);">❤️ HEAL</h6>
             <div class="custom-select" onclick="openSelect(event, 'healSrcList')" id="healSrcBtn">치료자</div>
@@ -205,6 +198,16 @@
             <div id="healTarList" class="dropdown-menu"></div>
             <div id="healTarTags" style="font-size:10px; min-height:15px; margin-bottom:2px;"></div>
             <button class="btn-action" style="background:var(--heal-accent);" onclick="executeAction('heal')">HEAL</button>
+        </div>
+    </div>
+
+    <div class="control-row" style="margin-top: 10px;">
+        <div class="control-box" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: #222; color: white; border: 1px solid #444; padding: 10px;">
+            <span style="color: #ff4444; font-weight: bold; white-space: nowrap;">[광역기 설정]</span>
+            <span>데미지:</span> <input type="number" id="aoePercent" value="10" style="width: 50px; background: #333; color: white; border: 1px solid #555;"> <b>%</b>
+            <span style="margin-left: 10px;">상태이상:</span> <input type="text" id="aoeStatusName" placeholder="도트딜" style="width: 80px; background: #333; color: white; border: 1px solid #555;"> 
+            <span style="margin-left: 10px;">확률:</span> <input type="number" id="aoeStatusChance" value="30" style="width: 50px; background: #333; color: white; border: 1px solid #555;"> <b>%</b>
+            <button onclick="executeAoE()" style="background: #880000; color: white; cursor: pointer; padding: 5px 15px; border: none; border-radius: 4px; font-weight: bold;">🔥 광역 발동</button>
         </div>
     </div>
 
