@@ -222,8 +222,8 @@
         </div>
     </div>
 
-    <div class="control-row" style="margin-top: 0px !important; margin-bottom: 5px !important;">
-        <div class="control-box" style="width: 100%; border: 1px solid #ddd; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 5px 12px !important; max-height: 80px; display: flex; flex-direction: column; justify-content: center;">
+    <div class="control-row" style="margin-top: 0px !important; margin-bottom: 2px !important;">
+        <div class="control-box" style="width: 100%; border: 1px solid #ddd; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 5px 12px !important; max-height: 70px; display: flex; flex-direction: column; justify-content: center;">
             <h6 style="margin: 0 0 2px 0 !important; color: #d63031; font-weight: bold; display: flex; align-items: center; gap: 5px; font-size: 11px;">
                 💥 FIXED DAMAGE SETTING
             </h6>
@@ -250,22 +250,21 @@
         </div>
     </div>
     
-    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:8px; border-radius:10px; border:1px solid var(--border);">
-        <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:8px; font-size:11px;">⚙️ 상태이상 설정</button>
-        <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:8px; font-size:11px;">💊 아이템 설정</button>
-        <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:8px; font-size:11px;">👜 아이템 사용</button>
+    <div class="admin-control" style="display:flex; gap:5px; background:white; padding:5px; border-radius:10px; border:1px solid var(--border); margin-bottom: 2px !important;">
+        <button onclick="toggleModal('statusManagerMenu', true)" style="flex:1; background:#34495e; color:white; padding:6px; font-size:11px;">⚙️ 상태이상 설정</button>
+        <button onclick="toggleModal('itemManagerMenu', true)" style="flex:1; background:#2980b9; color:white; padding:6px; font-size:11px;">💊 아이템 설정</button>
+        <button onclick="toggleModal('useItemPopup', true)" style="flex:1.5; background:#27ae60; color:white; padding:6px; font-size:11px;">👜 아이템 사용</button>
     </div>
     
-    <div style="display:flex; gap:5px;">
+    <div style="display:flex; gap:5px; margin-bottom: 5px !important;">
         <button class="admin-control" onclick="exportData()" style="background:#27ae60; color:white; padding:6px 12px; font-size:11px;">📤 저장</button>
         <button class="admin-control" onclick="document.getElementById('fileInput').click()" style="background:#2980b9; color:white; padding:6px 12px; font-size:11px;">📥 불러오기</button>
         <button class="admin-control" onclick="resetAllData()" style="background:#e63946; color:white; padding:6px 12px; font-size:11px;">🧹 리셋</button>
-        <button onclick="toggleModal('skillMemoMenu', true)" style="flex:1.5; background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
+        <button onclick="toggleModal('skillMemoMenu', true)" style="flex:1; background:var(--skill-accent); color:white; padding:6px 12px; font-size:11px;">📜 스킬 메모</button>
         <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
     </div>
-
-    <div class="log-area" id="logArea"></div>
-</div>
+    
+    <div class="log-area" id="logArea" style="height: 350px !important; flex-grow: 1;"></div>
 
 <div class="side-panel">
     <div class="panel-header" style="padding:10px; display:flex; justify-content:space-between; align-items:center;">
