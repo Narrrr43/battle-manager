@@ -410,51 +410,36 @@
     
         tars.forEach(n => {
             const tC = findCardByName(n); if(!tC) return;
-            const tId = tC.id.split('_')[1];
+            
+            // ID 추출 안전화
+            const sId = sC.id.includes('_') ? sC.id.split('_')[1] : sC.id;
+            const tId = tC.id.includes('_') ? tC.id.split('_')[1] : tC.id;
     
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
-                
-                // [판정] 명중 여부 업데이트 버전
                 let isHit = false;
                 const hitRoll = Math.floor(Math.random() * 100) + 1;
     
                 if (sHit >= 100 || tEva <= 0) {
-                    // 1. 절대 명중 조건 (명중 100↑ 또는 상대 회피 0)
                     isHit = true;
                 } else {
-                    // 2. 확률 계산 (차등 보정)
-                    // 기본 공식: [내 명중] - [상대 회피의 절반]
                     let finalChance = sHit - (tEva * 0.5);
-                    
-                    // 플레이어(캐릭터) 공격일 경우 명중률 +20% 보정 (스트레스 방지)
-                    if (sC.id.includes('char') || sC.id.includes('unitCard')) { 
-                        finalChance += 20; 
-                    }
-
-                    // 최소 5% ~ 최대 100% 사이로 제한
+                    if (sC.id.includes('char') || sC.id.includes('unitCard')) finalChance += 20; 
                     finalChance = Math.max(5, Math.min(100, finalChance));
-
                     if (hitRoll <= finalChance) isHit = true;
                 }
     
-                // 공격 실패 시 처리
                 if (!isHit) {
-                    let failMsg = '';
-                    // 주사위가 내 순수 명중(sHit)보다 높으면 본인 실수(Miss), 낮으면 상대가 잘 피함(Evade)
-                    if (hitRoll > sHit) {
-                        failMsg = `[Dice:${hitRoll}] 공격에 실패했습니다. (Miss)`;
-                    } else {
-                        failMsg = `[Dice:${hitRoll}] 상대가 회피했습니다. (Evade)`;
-                    }
+                    let failMsg = hitRoll > sHit ? `[Dice:${hitRoll}] 명중에 실패했습니다.(Miss)` : `[Dice:${hitRoll}] 상대가 회피했습니다.(Evade)`;
                     return log(`💨 ${src} → ${n}: ${failMsg}`, 'log-dice');
                 }
                 
-                // --- 공격 성공 시 데미지 계산 시작 ---
-                const sAtk = getModifiedStat(sC, 'atk'), sSp = parseFloat(sC.querySelector('.sp').value);
+                // --- 데미지 계산 (합의된 공식) ---
+                const sAtk = getModifiedStat(sC, 'atk');
+                const sSp = parseFloat(sC.querySelector('.sp').value) || 0;
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
                 
-                let d = ((sAtk * (sSp + (sHit/10)) * (sHit/10)) / 80);
+                let d = sAtk * (1 + (sHit / 100)) + (sSp * 5);
                 d *= (0.9 + Math.random() * 0.2);
                 
                 const critRoll = Math.floor(Math.random() * 100) + 1;
@@ -462,48 +447,41 @@
                 if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 
                 const finalD = Math.round(d);
-                const tHpEl = tC.querySelector('.hp'); // 대상의 HP 엘리먼트
-                const nextHp = Math.max(0, parseFloat(tC.querySelector('.hp').value) - finalD);
-                tC.querySelector('.hp').value = nextHp;
-
-                // A. 반사 로직 (공격받은 대상 tC에게 '반사' 상태이상이 있는지 확인)
-                const reflectState = getStatus(tC, '반사'); // 상태이상 수치를 가져오는 함수 (가칭)
+                const tHpEl = tC.querySelector('.hp');
+                
+                // 실제 데이터 차감
+                tHpEl.value = Math.max(0, parseFloat(tHpEl.value) - finalD);
+    
+                // A. 반사 / B. 흡혈 / C. 피격 흡수 (데이터 선반영 후 UI 갱신)
+                const reflectState = getStatus(tC, '반사');
                 if (reflectState > 0) {
                     const reflectD = Math.round(finalD * (reflectState / 100));
                     const sHpEl = sC.querySelector('.hp');
-                    const sNextHp = Math.max(0, parseFloat(sHpEl.value) - reflectD);
-                    sHpEl.value = sNextHp;
-                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해를 반사합니다.`, 'log-dice');
-                    updateHP(src.split('_')[1]); // 공격자 HP UI 업데이트
+                    sHpEl.value = Math.max(0, parseFloat(sHpEl.value) - reflectD);
+                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해를 반사했습니다.`, 'log-dice');
+                    updateHP(sId); 
                 }
                 
-                // B. 흡혈 로직 (공격한 본인 sC에게 '흡혈' 상태이상이 있는지 확인)
                 const drainState = getStatus(sC, '흡혈');
                 if (drainState > 0) {
                     const drainH = Math.round(finalD * (drainState / 100));
                     const sHpEl = sC.querySelector('.hp');
-                    const sMaxHp = parseFloat(sC.querySelector('.max').value);
-                    sHpEl.value = Math.min(sMaxHp, parseFloat(sHpEl.value) + drainH);
+                    const sMax = parseFloat(sC.querySelector('.max').value);
+                    sHpEl.value = Math.min(sMax, parseFloat(sHpEl.value) + drainH);
                     log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복했습니다.`, 'log-heal');
-                    updateHP(src.split('_')[1]);
+                    updateHP(sId);
                 }
-
-                // C. 피격 흡수 로직 (공격받은 대상 tC에게 '피격흡수' 상태이상이 있는지 확인)
-                const absorbPower = getStatus(tC, '피격흡수'); // '피격흡수'라는 단어가 포함된 배지 확인
+    
+                const absorbPower = getStatus(tC, '피격흡수');
                 if (absorbPower > 0) {
                     const absorbH = Math.round(finalD * (absorbPower / 100));
-                    const tHpEl = tC.querySelector('.hp');
-                    const tMaxHp = parseFloat(tC.querySelector('.max').value);
-                    
-                    // 이미 깎인 HP 상태에서 absorbH만큼 다시 채워줌
-                    const recoveredHp = Math.min(tMaxHp, parseFloat(tHpEl.value) + absorbH);
-                    tHpEl.value = recoveredHp;
-                
-                    log(`🛡️ 흡수! ${n}이(가) 충격을 흡수해 <b>${absorbH}</b> 회복했습니다.`, 'log-heal');
-                    // 피격자의 HP바를 다시 업데이트 (반사/흡혈과 별개로 피격자 본인 UI)
-                    updateHP(tId); 
+                    const tMax = parseFloat(tC.querySelector('.max').value);
+                    tHpEl.value = Math.min(tMax, parseFloat(tHpEl.value) + absorbH);
+                    log(`🛡️ 흡수! ${n} +<b>${absorbH}</b> 회복했습니다.`, 'log-heal');
+                    // 피격자 UI는 아래에서 한꺼번에 갱신
                 }
                 
+                // 피격 애니메이션
                 if(finalD > 0) {
                     tC.classList.remove('shake-card');
                     void tC.offsetWidth;
@@ -511,29 +489,24 @@
                     setTimeout(() => tC.classList.remove('shake-card'), 400);
                 }
     
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
-                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망했습니다.`, 'log-round-box');
-                
-                updateHP(tId);
+                // 로그 출력 및 최종 UI 업데이트 (updateHP 내부에서 사망로그 처리됨)
+                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해를 입었습니다.`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                updateHP(tId); 
     
             } else {
-
-                // 치료 대상(tC)에게 '치유불가' 상태이상이 있는지 확인
-                if (getStatus(tC, '치유불가')) { 
-                return log(`🚫 ${n}: 치유불가 상태입니다.`, 'log-dice');
-                }
+                // 치유 로직
+                if (getStatus(tC, '치유불가')) return log(`🚫 ${n}: 치유불가 상태입니다.`, 'log-dice');
                 
-                // 치료 로직
-                const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value), maxHp = parseFloat(tC.querySelector('.max').value);
-                let h = (((maxHp * 0.33) / 80 * eff) + (intel * 0.2));
-                h *= (0.95 + Math.random() * 0.1);
+                const intel = getModifiedStat(sC, 'int'), eff = parseFloat(sC.querySelector('.healEff').value);
+                const maxHp = parseFloat(tC.querySelector('.max').value);
+                let h = (((maxHp * 0.33) / 80 * eff) + (intel * 0.2)) * (0.95 + Math.random() * 0.1);
                 
                 const finalH = Math.round(h);
-                const curHp = parseFloat(tC.querySelector('.hp').value);
-                tC.querySelector('.hp').value = Math.min(maxHp, curHp + finalH);
+                const hpEl = tC.querySelector('.hp');
+                hpEl.value = Math.min(maxHp, parseFloat(hpEl.value) + finalH);
                 
                 updateHP(tId); 
-                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복`, 'log-heal');
+                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복했습니다.`, 'log-heal');
             }
         });
         broadcastData();
@@ -558,7 +531,6 @@
     }
         
     function updateHP(id, b = true) {
-        // 1. 유닛 카드를 찾습니다 (두 가지 ID 형식을 모두 체크하도록 설계)
         const c = document.getElementById(`unitCard_${id}`) || document.getElementById(`char_${id}`);
         if(!c) return;
         
@@ -570,29 +542,35 @@
         const max = parseFloat(maxInput.value) || 1;
         const p = Math.max(0, Math.min(100, (hp / max) * 100));
     
+        // [추가] 이미 사망 상태인지 확인 (중복 로그 방지용)
+        const wasAlreadyKO = c.classList.contains('is-ko');
+    
         // 2. 뱃지(텍스트 표시) 업데이트
         const badge = document.getElementById(`hpBadge_${id}`);
         if(badge) badge.textContent = `${hp.toFixed(0)}/${max.toFixed(0)}`;
     
         // 3. 체력바 길이 및 색상 업데이트
-        // 바의 ID(hpBar_)와 클래스(.hp-bar-fill 또는 .hp-bar-inner)를 둘 다 체크
         const bar = document.getElementById(`hpBar_${id}`) || c.querySelector('.hp-bar-fill') || c.querySelector('.hp-bar-inner');
-        
         if(bar) {
             bar.style.width = p + "%";
-            
-            // 색상 클래스 초기화 후 재설정
             bar.classList.remove('hp-safe', 'hp-warning', 'hp-danger');
             if (p > 70) bar.classList.add('hp-safe');
             else if (p > 30) bar.classList.add('hp-warning');
             else bar.classList.add('hp-danger');
         }
     
-        // 4. 사망 처리 (is-ko 클래스)
-        if(hp <= 0) c.classList.add('is-ko');
-        else c.classList.remove('is-ko');
+        // 4. 사망 처리 및 로그 출력
+        if(hp <= 0) {
+            c.classList.add('is-ko');
+            // 새로 사망했을 때만 로그 출력
+            if (!wasAlreadyKO) {
+                const unitName = c.querySelector('.name')?.value || id;
+                log(`💀 <b>${unitName}</b>이(가) 사망했습니다!`, 'log-death'); 
+            }
+        } else {
+            c.classList.remove('is-ko');
+        }
     
-        // 5. 실시간 데이터 공유
         if(b) broadcastData();
     }
     
