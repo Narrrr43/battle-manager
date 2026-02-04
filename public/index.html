@@ -190,6 +190,13 @@
             <input type="number" id="diceSuccess" placeholder="성공값" style="width:100%; text-align:center; margin-bottom:4px; padding:4px; border:1px solid #ddd; border-radius:4px;">
             <button class="btn-action" style="background:var(--dice-accent);" onclick="rollDice()">ROLL</button>
         </div>
+        <div class="control-box" style="margin-top: 10px; padding: 10px; border: 1px solid #444; background: #222; color: white;">
+            <span style="color: #ff4444; font-weight: bold;">[광역기 설정]</span><br>
+            데미지: <input type="number" id="aoePercent" value="10" style="width: 40px;"> % | 
+            상태이상: <input type="text" id="aoeStatusName" placeholder="도트딜" style="width: 70px;"> 
+            확률: <input type="number" id="aoeStatusChance" value="30" style="width: 40px;"> %
+            <button onclick="executeAoE()" style="background: #880000; color: white; cursor: pointer; margin-left: 5px;">🔥 광역 발동</button>
+        </div>
         <div class="control-box">
             <h6 style="margin:0 0 6px 0; color:var(--heal-accent);">❤️ HEAL</h6>
             <div class="custom-select" onclick="openSelect(event, 'healSrcList')" id="healSrcBtn">치료자</div>
@@ -354,10 +361,10 @@
                 
                 if(type === 'dot') { 
                     card.querySelector('.hp').value = Math.max(0, currentHp - effectVal); 
-                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해!`, 'log-atk'); 
+                    log(`☣️ ${name}: [${sName}] 효과로 <b>${effectVal}</b> 피해를 입었습니다.`, 'log-atk'); 
                 } else { 
                     card.querySelector('.hp').value = Math.min(maxHp, currentHp + effectVal); 
-                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복!`, 'log-heal'); 
+                    log(`🌿 ${name}: [${sName}] 효과로 <b>${effectVal}</b> 회복합니다.`, 'log-heal'); 
                 }
                 updateHP(id, false);
             }
@@ -473,7 +480,7 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sNextHp = Math.max(0, parseFloat(sHpEl.value) - reflectD);
                     sHpEl.value = sNextHp;
-                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해`, 'log-dice');
+                    log(`🔄 반사! ${n} → ${src}: <b>${reflectD}</b> 피해를 반사합니다.`, 'log-dice');
                     updateHP(src.split('_')[1]); // 공격자 HP UI 업데이트
                 }
                 
@@ -484,8 +491,24 @@
                     const sHpEl = sC.querySelector('.hp');
                     const sMaxHp = parseFloat(sC.querySelector('.max').value);
                     sHpEl.value = Math.min(sMaxHp, parseFloat(sHpEl.value) + drainH);
-                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복`, 'log-heal');
+                    log(`🩸 흡혈! ${src} +<b>${drainH}</b> 회복합니다.`, 'log-heal');
                     updateHP(src.split('_')[1]);
+                }
+
+                // C. 피격 흡수 로직 (공격받은 대상 tC에게 '피격흡수' 상태이상이 있는지 확인)
+                const absorbPower = getStatus(tC, '피격흡수'); // '피격흡수'라는 단어가 포함된 배지 확인
+                if (absorbPower > 0) {
+                    const absorbH = Math.round(finalD * (absorbPower / 100));
+                    const tHpEl = tC.querySelector('.hp');
+                    const tMaxHp = parseFloat(tC.querySelector('.max').value);
+                    
+                    // 이미 깎인 HP 상태에서 absorbH만큼 다시 채워줌
+                    const recoveredHp = Math.min(tMaxHp, parseFloat(tHpEl.value) + absorbH);
+                    tHpEl.value = recoveredHp;
+                
+                    log(`🛡️ 흡수! ${n}이(가) 충격을 흡수해 <b>${absorbH}</b> 회복합니다.`, 'log-heal');
+                    // 피격자의 HP바를 다시 업데이트 (반사/흡혈과 별개로 피격자 본인 UI)
+                    updateHP(tId); 
                 }
                 
                 if(finalD > 0) {
@@ -495,8 +518,8 @@
                     setTimeout(() => tC.classList.remove('shake-card'), 400);
                 }
     
-                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해`, isCrit ? 'log-atk shake-log' : 'log-atk');
-                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망!`, 'log-round-box');
+                log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해를 입혔습니다.`, isCrit ? 'log-atk shake-log' : 'log-atk');
+                if(nextHp <= 0 && finalD > 0) log(`💀 ${n} 사망했습니다.`, 'log-round-box');
                 
                 updateHP(tId);
     
@@ -517,7 +540,7 @@
                 tC.querySelector('.hp').value = Math.min(maxHp, curHp + finalH);
                 
                 updateHP(tId); 
-                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복`, 'log-heal');
+                log(`✨ ${src} → ${n}: <b>${finalH}</b> 회복했습니다.`, 'log-heal');
             }
         });
         broadcastData();
@@ -578,6 +601,79 @@
     
         // 5. 실시간 데이터 공유
         if(b) broadcastData();
+    }
+
+    function executeAoE() {
+        const percent = parseFloat(document.getElementById('aoePercent').value) || 0;
+        const statusName = document.getElementById('aoeStatusName').value.trim();
+        const statusChance = parseFloat(document.getElementById('aoeStatusChance').value) || 0;
+        
+        const src = selections.atkSrc;
+        const tars = selections.atkTar;
+        const sC = findCardByName(src);
+        
+        if (!sC) return alert("공격 주체를 선택해주세요!");
+        if (tars.length === 0) return alert("대상을 선택하세요!");
+    
+        if (!confirm(`${src}의 광역 공격을 발동합니까?`)) return;
+    
+        let totalReflectedD = 0;
+        let totalDrainedH = 0;
+        const drainPower = getStatus(sC, '흡혈');
+    
+        tars.forEach(n => {
+            const tC = findCardByName(n);
+            if (!tC || tC.classList.contains('is-ko')) return;
+    
+            const tId = tC.id.split('_')[1];
+            const maxHp = parseFloat(tC.querySelector('.max').value);
+            
+            // 1. 데미지 적용
+            const damage = Math.round(maxHp * (percent / 100));
+            const curHpEl = tC.querySelector('.hp');
+            curHpEl.value = Math.max(0, parseFloat(curHpEl.value) - damage);
+            
+            // 2. 반사 & 흡혈 누적
+            const reflectPower = getStatus(tC, '반사');
+            if (reflectPower > 0) totalReflectedD += Math.round(damage * (reflectPower / 100));
+            if (drainPower > 0) totalDrainedH += Math.round(damage * (drainPower / 100));
+    
+            // 3. 상태이상 확률 부여 (마스터님의 addStatusToUnit 활용)
+            if (statusName && statusChance > 0) {
+                const roll = Math.floor(Math.random() * 100) + 1;
+                if (roll <= statusChance) {
+                    // 이름에 따른 시스템 stat 코드 매칭 (필요에 따라 추가하세요)
+                    let statCode = 'none';
+                    if(statusName.includes('도트')) statCode = 'dot';
+                    else if(statusName.includes('치유')) statCode = 'healBlock';
+                    else if(statusName.includes('행동')) statCode = 'skip';
+                    else if(statusName.includes('회복')) statCode = 'hot';
+                    
+                    // addStatusToUnit(id, 이름, 스탯코드, 파워, 지속턴)
+                    // 파워 5, 지속 3턴을 기본값으로 설정했습니다.
+                    addStatusToUnit(tId, statusName, statCode, 5, 3);
+                }
+            }
+    
+            tC.classList.remove('shake-card');
+            void tC.offsetWidth;
+            tC.classList.add('shake-card');
+            updateHP(tId, false);
+        });
+    
+        // 4. 공격자 결과 적용
+        const sHpEl = sC.querySelector('.hp');
+        const sMaxHp = parseFloat(sC.querySelector('.max').value);
+        const sId = sC.id.split('_')[1];
+        let finalNetChange = totalDrainedH - totalReflectedD;
+        sHpEl.value = Math.max(0, Math.min(sMaxHp, parseFloat(sHpEl.value) + finalNetChange));
+    
+        if (totalReflectedD > 0) log(`🔄 반사 피해: ${totalReflectedD}`, 'log-dice');
+        if (totalDrainedH > 0) log(`🩸 흡혈 회복: ${totalDrainedH}`, 'log-heal');
+        log(`🔥 <b>[광역기]</b> ${src} → ${tars.length}명에게 ${percent}% 피해!`, 'log-round-box');
+        
+        updateHP(sId, false);
+        broadcastData();
     }
     
     // [신규 스킬 메모 기능 로직]
