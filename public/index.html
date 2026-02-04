@@ -415,30 +415,38 @@
             if(m === 'attack') {
                 const sHit = getModifiedStat(sC, 'hit'), tEva = getModifiedStat(tC, 'eva');
                 
-                // [판정] 명중 여부 (회피 0이면 무조건 명중)
+                // [판정] 명중 여부 업데이트 버전
                 let isHit = false;
                 const hitRoll = Math.floor(Math.random() * 100) + 1;
     
                 if (sHit >= 100 || tEva <= 0) {
+                    // 1. 절대 명중 조건 (명중 100↑ 또는 상대 회피 0)
                     isHit = true;
                 } else {
-                    const finalChance = sHit + (100 - tEva); 
+                    // 2. 확률 계산 (차등 보정)
+                    // 기본 공식: [내 명중] - [상대 회피의 절반]
+                    let finalChance = sHit - (tEva * 0.5);
+                    
+                    // 플레이어(캐릭터) 공격일 경우 명중률 +20% 보정 (스트레스 방지)
+                    if (sC.id.includes('char') || sC.id.includes('unitCard')) { 
+                        finalChance += 20; 
+                    }
+
+                    // 최소 5% ~ 최대 100% 사이로 제한
+                    finalChance = Math.max(5, Math.min(100, finalChance));
+
                     if (hitRoll <= finalChance) isHit = true;
                 }
     
-                // 공격 실패 시: 실패 원인을 분석해서 로그 출력
+                // 공격 실패 시 처리
                 if (!isHit) {
                     let failMsg = '';
-                    
-                    // 판정 1: 내 명중 수치(sHit)보다 주사위가 높게 나왔을 때 (내가 못 맞춤)
+                    // 주사위가 내 순수 명중(sHit)보다 높으면 본인 실수(Miss), 낮으면 상대가 잘 피함(Evade)
                     if (hitRoll > sHit) {
                         failMsg = `[Dice:${hitRoll}] 공격에 실패했습니다. (Miss)`;
-                    } 
-                    // 판정 2: 내 명중은 성공했지만, 상대 회피 판정 때문에 막혔을 때 (상대가 피함)
-                    else {
+                    } else {
                         failMsg = `[Dice:${hitRoll}] 상대가 회피했습니다. (Evade)`;
                     }
-                    
                     return log(`💨 ${src} → ${n}: ${failMsg}`, 'log-dice');
                 }
                 
