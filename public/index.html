@@ -434,12 +434,19 @@
                     return log(`💨 ${src} → ${n}: ${failMsg}`, 'log-dice');
                 }
                 
-                // --- 데미지 계산 (합의된 공식) ---
+                // --- 데미지 계산 (공격력 격차 강화 버전) ---
                 const sAtk = getModifiedStat(sC, 'atk');
                 const sSp = parseFloat(sC.querySelector('.sp').value) || 0;
                 const sCritR = getModifiedStat(sC, 'critR'), sCritD = getModifiedStat(sC, 'critD') / 100;
                 
-                let d = sAtk * (1 + (sHit / 100)) + (sSp * 5);
+                // [수정] 공격력 10단위마다 가중치(제곱)를 부여해 고공격력 효율 극대화
+                // 공격 80 -> weight 144 / 공격 110 -> weight 231 (차이가 확 벌어짐)
+                let attackWeight = sAtk + Math.pow(sAtk / 10, 2); 
+                
+                // 증폭된 공격력에 숙련도(sHit) 배율 적용
+                let d = attackWeight * (1 + (sHit / 100)) + (sSp * 5);
+                
+                // 난수 적용
                 d *= (0.9 + Math.random() * 0.2);
                 
                 const critRoll = Math.floor(Math.random() * 100) + 1;
@@ -447,7 +454,7 @@
                 if(critRoll <= sCritR) { d *= sCritD; isCrit = true; }
                 
                 const finalD = Math.round(d);
-                const tHpEl = tC.querySelector('.hp');
+                const tHpEl = tC.querySelector('.hp');;
                 
                 // 실제 데이터 차감
                 tHpEl.value = Math.max(0, parseFloat(tHpEl.value) - finalD);
