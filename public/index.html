@@ -488,17 +488,25 @@
                     // 피격자 UI는 아래에서 한꺼번에 갱신
                 }
                 
-                // 피격 애니메이션
+                // 피격 애니메이션 (확실하게 흔들리도록 강제 재트리거)
                 if(finalD > 0) {
                     tC.classList.remove('shake-card');
-                    void tC.offsetWidth;
+                    void tC.offsetWidth; // 리플로우 강제 발생
                     tC.classList.add('shake-card');
-                    setTimeout(() => tC.classList.remove('shake-card'), 400);
+                    // 흔들림이 잘 보이도록 0.5초 뒤 제거
+                    setTimeout(() => tC.classList.remove('shake-card'), 500);
                 }
     
-                // 로그 출력 및 최종 UI 업데이트 (updateHP 내부에서 사망로그 처리됨)
+                // [로그 출력] 
                 log(`${isCrit ? '💥 <b>CRIT!</b> ' : ''}⚔️ ${src} → ${n}: <b>${finalD}</b> 피해를 입었습니다.`, isCrit ? 'log-atk shake-log' : 'log-atk');
-                updateHP(tId); 
+                
+                // [사망 로그 강화] 검은색 배경의 확실한 로그
+                const nextHp = parseFloat(tC.querySelector('.hp').value);
+                if(nextHp <= 0 && finalD > 0) {
+                    log(`💀 <b>${n}</b>이(가) 사망했습니다.`, 'log-round-box'); 
+                }
+
+                updateHP(tId);
     
             } else {
                 // 치유 로직
